@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relógio Ponto</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="login">
+    <h1>Login</h1>
+    <input type="text" id="username" placeholder="Usuário">
+    <button onclick="login()">Entrar</button>
+  </div>
+
+  <div id="app" style="display: none;">
+    <h1>Registrar Ponto</h1>
+    <button onclick="registrarEntrada()">Registrar Entrada</button>
+    <button onclick="registrarSaida()">Registrar Saída</button>
+    <h2>Meus Registros</h2>
+    <ul id="registros"></ul>
+    <h2>Total do Dia</h2>
+    <p id="total"></p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
