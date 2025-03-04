@@ -9,17 +9,17 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: #e0f7ff; /* Azul claro suave */
+      background-color: #e0f7ff;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      background-image: url('background.jpg'); /* Adicione uma imagem de fundo */
+      background-image: url('background.jpg');
       background-size: cover;
       background-position: center;
     }
     #login, #app {
-      background-color: rgba(255, 255, 255, 0.9); /* Fundo branco semi-transparente */
+      background-color: rgba(255, 255, 255, 0.9);
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -30,7 +30,7 @@
       max-height: 90vh;
     }
     h1 {
-      color: #003366; /* Azul marinho */
+      color: #003366;
     }
     input, select, button {
       margin: 10px 0;
@@ -41,14 +41,14 @@
       border-radius: 5px;
     }
     button {
-      background-color: #003366; /* Azul marinho */
+      background-color: #003366;
       color: white;
       border: none;
       cursor: pointer;
       transition: background-color 0.3s;
     }
     button:hover {
-      background-color: #002244; /* Azul marinho mais escuro */
+      background-color: #002244;
     }
     ul {
       list-style-type: none;
@@ -60,11 +60,6 @@
       padding: 10px;
       border: 1px solid #ddd;
       border-radius: 5px;
-    }
-    #mensagem, #mensagemRegistro {
-      color: red;
-      font-weight: bold;
-      margin-top: 10px;
     }
     .bloco-trabalho {
       margin-top: 20px;
@@ -232,12 +227,15 @@
         registrosAgrupados[registro.data].push(registro);
       });
 
-      // Exibe os registros agrupados por data
+      // Exibe os registros agrupados por data de forma compacta
       lista.innerHTML = Object.keys(registrosAgrupados).map(data => `
         <li>
           <strong>${data}</strong>
           <ul>
-            ${registrosAgrupados[data].map(reg => `<li>${reg.tipo} (${reg.tipoTrabalho}): ${reg.horario}</li>`).join("")}
+            ${registrosAgrupados[data].map(reg => `
+              <li>
+                <strong>${reg.tipo}:</strong> ${reg.tipoTrabalho} - ${reg.horario}
+              </li>`).join("")}
           </ul>
         </li>
       `).join("");
