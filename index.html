@@ -1,211 +1,187 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <title>Registro de Ponto</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <style>
         body {
+            background-color: #f0f0f5;
             font-family: Arial, sans-serif;
-            background-color: #f0f8ff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            padding: 20px;
         }
-        .container {
-            background-color: #fff;
+        #login, #registro {
+            background-color: white;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            width: 350px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            max-width: 400px;
+            margin: auto;
         }
         button {
-            margin: 5px;
-            padding: 10px;
             background-color: #007bff;
             color: white;
             border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        select, input {
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0;
-        }
-        h2 {
-            background-color: #007bff;
-            color: white;
             padding: 10px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 8px;
             text-align: center;
+        }
+        #registro {
+            display: none;
         }
     </style>
 </head>
 <body>
 
-<div class="container" id="loginScreen">
-    <h2>Login</h2>
+<div id="login">
+    <h3>Login</h3>
     <input type="text" id="usuario" placeholder="Usuário">
-    <input type="password" id="senha" placeholder="Senha">
-    <button onclick="login()">Entrar</button>
+    <input type="password" id="senha" placeholder="Senha" onkeydown="if(event.key==='Enter') validarLogin()">
+    <button onclick="validarLogin()">Entrar</button>
 </div>
 
-<div class="container" id="pontoScreen" style="display:none;">
-    <h2>Registro de Ponto</h2>
+<div id="registro">
+    <h3>Registro de Ponto</h3>
     <select id="tipoServico">
-        <option>Elétrica</option>
-        <option>Hidráulica</option>
-        <option>Manutenção Civil</option>
+        <option value="Elétrica">Elétrica</option>
+        <option value="Manutenção Civil">Manutenção Civil</option>
+        <option value="Hidráulica">Hidráulica</option>
     </select>
-    <button onclick="registrarEntrada()">Entrada</button>
-    <button onclick="registrarSaida()">Saída</button>
-    <button onclick="limparRegistros()">Limpar Registros</button>
-    <button onclick="exportarPDF()">Exportar PDF</button>
-    <button onclick="sair()">Sair</button>
-
-    <h3>Registros do Dia</h3>
-    <div id="registrosDia"></div>
-
-    <h3>Resumo Mensal</h3>
-    <div id="resumoMensal"></div>
+    <button onclick="registrarEntrada()">Registrar Entrada</button>
+    <button onclick="registrarSaida()">Registrar Saída</button>
+    <button onclick="gerarPDF()">Gerar PDF</button>
+    <table id="tabelaRegistros">
+        <thead>
+            <tr>
+                <th>Serviço</th>
+                <th>Entrada</th>
+                <th>Saída</th>
+                <th>Horas Trabalhadas</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 </div>
 
 <script>
-let registros = JSON.parse(localStorage.getItem('registros')) || {};
-const valorHora = { 'Elétrica': 103, 'Hidráulica': 97.5, 'Manutenção Civil': 97 };
-
-document.getElementById('senha').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') login();
-});
-
-function login() {
-    if (document.getElementById('usuario').value === 'admin' &&
-        document.getElementById('senha').value === '1234') {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('pontoScreen').style.display = 'block';
-        atualizarTela();
-    } else {
-        alert('Usuário ou senha incorretos.');
-    }
-}
-
-function sair() {
-    location.reload();
-}
-
-function registrarEntrada() {
-    const tipo = document.getElementById('tipoServico').value;
-    if (!registros[tipo]) registros[tipo] = [];
-    registros[tipo].push({ entrada: new Date(), saida: null });
-    salvarRegistros();
-    atualizarTela();
-}
-
-function registrarSaida() {
-    const tipo = document.getElementById('tipoServico').value;
-    const registro = registros[tipo]?.find(r => !r.saida);
-    if (registro) {
-        registro.saida = new Date();
-        salvarRegistros();
-        atualizarTela();
-    } else {
-        alert('Nenhuma entrada aberta.');
-    }
-}
-
-function salvarRegistros() {
-    localStorage.setItem('registros', JSON.stringify(registros));
-}
-
-function atualizarTela() {
-    const hoje = new Date().toLocaleDateString();
-    let totalMinutos = 0;
-    let htmlDia = '';
-    let resumo = { 'Elétrica': 0, 'Hidráulica': 0, 'Manutenção Civil': 0 };
-
-    for (let tipo in registros) {
-        registros[tipo].forEach(r => {
-            const entrada = formatarHora(r.entrada);
-            const saida = r.saida ? formatarHora(r.saida) : 'Em andamento';
-            htmlDia += `${tipo}: ${entrada} - ${saida}<br>`;
-            if (r.saida) {
-                const minutos = calcularMinutos(r.entrada, r.saida);
-                resumo[tipo] += minutos;
-                if (new Date(r.entrada).toLocaleDateString() === hoje) totalMinutos += minutos;
-            }
-        });
-    }
-    document.getElementById('registrosDia').innerHTML = htmlDia || 'Nenhum registro';
-    document.getElementById('resumoMensal').innerHTML = Object.keys(resumo)
-        .map(t => `${t}: ${formatarHoras(resumo[t])}`).join('<br>');
-}
-
-function limparRegistros() {
-    registros = {};
-    salvarRegistros();
-    atualizarTela();
-}
-
-function calcularMinutos(inicio, fim) {
-    return Math.floor((new Date(fim) - new Date(inicio)) / 60000);
-}
-
-function formatarHora(data) {
-    return new Date(data).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatarHoras(min) {
-    return `${Math.floor(min / 60)}h ${min % 60}min`;
-}
-
-function exportarPDF() {
-    let rows = [['Data', 'Serviço', 'Entrada', 'Saída', 'Horas', 'Valor']];
-    for (let tipo in registros) {
-        registros[tipo].forEach(r => {
-            if (r.saida) {
-                const minutos = calcularMinutos(r.entrada, r.saida);
-                const valor = ((valorHora[tipo] / 60) * minutos).toFixed(2).replace('.', ',');
-                rows.push([
-                    new Date(r.entrada).toLocaleDateString(),
-                    tipo,
-                    formatarHora(r.entrada),
-                    formatarHora(r.saida),
-                    formatarHoras(minutos),
-                    `R$ ${valor}`
-                ]);
-            }
-        });
-    }
-
-    const doc = {
-        content: [
-            { text: 'Relatório de Ponto', style: 'header' },
-            { text: `Emitido em: ${new Date().toLocaleDateString()}` },
-            { table: { body: rows } }
-        ],
-        styles: { header: { fontSize: 16, bold: true } }
+    const valoresHora = {
+        'Elétrica': 103,
+        'Manutenção Civil': 97,
+        'Hidráulica': 97.5
     };
 
-    pdfMake.createPdf(doc).download('Ponto.pdf');
+    let registros = JSON.parse(localStorage.getItem('registros')) || {};
 
-    enviarEmailComPDF(doc);
-}
+    function validarLogin() {
+        const usuario = document.getElementById('usuario').value;
+        const senha = document.getElementById('senha').value;
 
-function enviarEmailComPDF(docDefinition) {
-    pdfMake.createPdf(docDefinition).getBase64(pdfBase64 => {
-        fetch('https://seuservidor.com/api/enviar-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdfBase64, email: 'diego.pereira1508@gmail.com' })
-        }).then(() => alert('PDF enviado por e-mail!'))
-          .catch(() => alert('Erro ao enviar e-mail.'));
-    });
-}
-</script>
-</body>
-</html>
+        if (usuario === 'admin' && senha === '1234') {
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('registro').style.display = 'block';
+            atualizarTela();
+        } else {
+            alert('Usuário ou senha incorretos!');
+        }
+    }
+
+    function registrarEntrada() {
+        const tipo = document.getElementById('tipoServico').value;
+
+        if (!registros[tipo]) registros[tipo] = [];
+        const entradaAberta = registros[tipo].some(r => !r.saida);
+
+        if (entradaAberta) {
+            alert(`Erro: Já existe entrada em aberto para ${tipo}. Finalize a saída primeiro.`);
+            return;
+        }
+
+        registros[tipo].push({ entrada: new Date(), saida: null });
+        salvarRegistros();
+        atualizarTela();
+    }
+
+    function registrarSaida() {
+        const tipo = document.getElementById('tipoServico').value;
+        const registroAtual = registros[tipo].find(r => !r.saida);
+
+        if (!registroAtual) {
+            alert('Nenhuma entrada aberta encontrada para esse serviço.');
+            return;
+        }
+
+        registroAtual.saida = new Date();
+        salvarRegistros();
+        atualizarTela();
+        enviarEmail(tipo, registroAtual);
+    }
+
+    function salvarRegistros() {
+        localStorage.setItem('registros', JSON.stringify(registros));
+    }
+
+    function atualizarTela() {
+        const tbody = document.querySelector('#tabelaRegistros tbody');
+        tbody.innerHTML = '';
+
+        for (const tipo in registros) {
+            registros[tipo].forEach(reg => {
+                const tr = document.createElement('tr');
+                const horasTrabalhadas = calcularHoras(reg.entrada, reg.saida);
+                const valor = horasTrabalhadas * valoresHora[tipo];
+
+                tr.innerHTML = `
+                    <td>${tipo}</td>
+                    <td>${formatarData(reg.entrada)}</td>
+                    <td>${reg.saida ? formatarData(reg.saida) : '-'}</td>
+                    <td>${horasTrabalhadas.toFixed(2)}</td>
+                    <td>R$ ${valor.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    function calcularHoras(entrada, saida) {
+        if (!saida) return 0;
+        const ms = new Date(saida) - new Date(entrada);
+        return ms / (1000 * 60 * 60);
+    }
+
+    function formatarData(data) {
+        if (!data) return '-';
+        const d = new Date(data);
+        return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+    }
+
+    function gerarPDF() {
+        const pdf = new jsPDF();
+        pdf.text('Relatório de Ponto', 10, 10);
+
+        let y = 20;
+        for (const tipo in registros) {
+            registros[tipo].forEach(reg => {
+                const horas = calcularHoras(reg.entrada, reg.saida).toFixed(2);
+                const valor = (horas * valoresHora[tipo]).toFixed(2);
+
+                pdf.text(`${tipo} | Entrada: ${formatarData(reg.entrada)} | Saída: ${formatarData(reg.saida)} | Horas: ${horas} | Valor: R$ ${valor}`, 10, y);
+                y += 7;
+            });
+        }
+
+        pdf.save('RelatorioPonto.pdf');
+    }
+
+    function enviarEmail(tipo, registro) {
+        const serviceID = 'seu_service_id';
+        const templateID = 'seu_template_id
