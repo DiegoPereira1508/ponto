@@ -90,7 +90,7 @@
       return alerta(`Já existe entrada para ${tipo} sem saída.`);
     }
 
-    const horario = new Date().toLocaleString('pt-BR');
+    const horario = new Date().toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     registros.push({ tipo, horario, acao: 'Entrada' });
     salvarEAtualizar();
   }
@@ -104,7 +104,7 @@
       return alerta(`Nenhuma entrada encontrada para ${tipo}.`);
     }
 
-    const horario = new Date().toLocaleString('pt-BR');
+    const horario = new Date().toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     registros.push({ tipo, horario, acao: 'Saída' });
     salvarEAtualizar();
   }
@@ -167,6 +167,7 @@
 
   // Gera um PDF com os registros
   function gerarPDF() {
+    const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text('Registros de Ponto', 10, 10);
