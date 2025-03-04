@@ -210,7 +210,25 @@
     // Carregar registros na tela
     function carregarRegistros() {
       const lista = document.getElementById("registros");
-      lista.innerHTML = horarios.map(h => `<li>${h.data} - ${h.tipo} (${h.tipoTrabalho}): ${h.horario}</li>`).join("");
+      const registrosAgrupados = {};
+
+      // Agrupa registros por data
+      horarios.forEach(registro => {
+        if (!registrosAgrupados[registro.data]) {
+          registrosAgrupados[registro.data] = [];
+        }
+        registrosAgrupados[registro.data].push(registro);
+      });
+
+      // Exibe os registros agrupados por data
+      lista.innerHTML = Object.keys(registrosAgrupados).map(data => `
+        <li>
+          <strong>${data}</strong>
+          <ul>
+            ${registrosAgrupados[data].map(reg => `<li>${reg.tipo} (${reg.tipoTrabalho}): ${reg.horario}</li>`).join("")}
+          </ul>
+        </li>
+      `).join("");
     }
 
     // Calcular total de horas por tipo de trabalho
