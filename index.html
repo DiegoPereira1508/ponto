@@ -24,8 +24,10 @@
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       max-width: 400px;
-      width: 100%;
+      width: 90%;
       text-align: center;
+      overflow-y: auto;
+      max-height: 90vh;
     }
     h1 {
       color: #003366; /* Azul marinho */
@@ -64,13 +66,23 @@
       font-weight: bold;
       margin-top: 10px;
     }
+    .bloco-trabalho {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f0f8ff;
+      border-radius: 5px;
+      border: 1px solid #003366;
+    }
+    .bloco-trabalho h3 {
+      color: #003366;
+    }
   </style>
 </head>
 <body>
   <div id="login">
     <h1>Login</h1>
-    <input type="text" id="username" placeholder="Usuário">
-    <input type="password" id="password" placeholder="Senha">
+    <input type="text" id="username" placeholder="Usuário" onkeypress="handleEnter(event)">
+    <input type="password" id="password" placeholder="Senha" onkeypress="handleEnter(event)">
     <button onclick="login()">Entrar</button>
     <p id="mensagem"></p>
   </div>
@@ -90,6 +102,23 @@
     <h2>Total do Dia</h2>
     <p id="total"></p>
     <p id="mensagemRegistro"></p>
+
+    <!-- Blocos de trabalho -->
+    <div class="bloco-trabalho">
+      <h3>Elétrica</h3>
+      <p>Dias trabalhados: <span id="diasEletrica">0</span></p>
+      <p>Total no mês: <span id="totalEletrica">0h0min</span></p>
+    </div>
+    <div class="bloco-trabalho">
+      <h3>Hidráulica</h3>
+      <p>Dias trabalhados: <span id="diasHidraulica">0</span></p>
+      <p>Total no mês: <span id="totalHidraulica">0h0min</span></p>
+    </div>
+    <div class="bloco-trabalho">
+      <h3>Manutenção Civil</h3>
+      <p>Dias trabalhados: <span id="diasCivil">0</span></p>
+      <p>Total no mês: <span id="totalCivil">0h0min</span></p>
+    </div>
   </div>
 
   <script>
@@ -102,6 +131,13 @@
     // Dados de horários (armazenados no localStorage)
     let horarios = JSON.parse(localStorage.getItem("horarios")) || [];
 
+    // Função para lidar com o pressionar da tecla "Enter"
+    function handleEnter(event) {
+      if (event.key === "Enter") {
+        login();
+      }
+    }
+
     // Função de login
     function login() {
       const username = document.getElementById("username").value;
@@ -112,6 +148,7 @@
         document.getElementById("login").style.display = "none";
         document.getElementById("app").style.display = "block";
         carregarRegistros();
+        atualizarBlocosTrabalho();
         mensagem.textContent = "";
       } else {
         mensagem.textContent = "Usuário ou senha inválidos!";
@@ -166,6 +203,7 @@
       localStorage.setItem("horarios", JSON.stringify(horarios));
       carregarRegistros();
       calcularTotal();
+      atualizarBlocosTrabalho();
       mensagemRegistro.textContent = "";
     }
 
@@ -221,6 +259,66 @@
       }
 
       document.getElementById("total").innerHTML = resultado;
+    }
+
+    // Atualizar blocos de trabalho
+    function atualizarBlocosTrabalho() {
+      const hoje = new Date();
+      const mesAtual = hoje.getMonth() + 1; // Mês atual (1 a 12)
+      const anoAtual = hoje.getFullYear(); // Ano atual
+
+      const totais = {
+        "Elétrica": { dias: 0, minutos: 0 },
+        "Hidraulica": { dias: 0, minutos: 0 },
+        "Manutenção Civil": { dias: 0, minutos: 0 }
+      };
+
+      // Filtra registros do mês atual
+      const registrosMesAtual = horarios.filter(registro => {
+        const dataRegistro = new Date(registro.data.split('/').reverse().join('-'));
+        return dataRegistro.getMonth() + 1 === mesAtual && dataRegistro.getFullYear() === anoAtual;
+      });
+
+      // Agrupa entradas e saídas por tipo de trabalho
+      const registrosPorTipo = {
+        "Elétrica": { entradas: [], saidas: [] },
+        "Hidraulica": { entradas: [], saidas: [] },
+        "Manutenção Civil": { entradas: [], saidas: [] }
+      };
+
+      registrosMesAtual.forEach(registro => {
+        if (registro.tipo === "Entrada") {
+          registrosPorTipo[registro.tipoTrabalho].entradas.push({ data: registro.data, horario: registro.horario });
+        } else if (registro.tipo === "Saída") {
+          registrosPorTipo[registro.tipoTrabalho].saidas.push({ data: registro.data, horario: registro.horario });
+        }
+      });
+
+      // Calcula o total de minutos e dias trabalhados para cada tipo de trabalho
+      for (const tipo in registrosPorTipo) {
+        const entradas = registrosPorTipo[tipo].entradas;
+        const saidas = registrosPorTipo[tipo].saidas;
+
+        totais[tipo].dias = entradas.length; // Número de dias trabalhados
+
+        for (let i = 0; i < entradas.length; i++) {
+          const entrada = new Date(`${entradas[i].data}T${entradas[i].horario}`);
+          const saida = new Date(`${saidas[i].data}T${saidas[i].horario}`);
+          const diferenca = saida - entrada;
+          const minutos = diferenca / 60000; // Converter milissegundos para minutos
+          totais[tipo].minutos += minutos;
+        }
+      }
+
+      // Atualiza os blocos de trabalho
+      document.getElementById("diasEletrica").textContent = totais["Elétrica"].dias;
+      document.getElementById("totalEletrica").textContent = `${Math.floor(totais["Elétrica"].minutos / 60)}h${Math.floor(totais["Elétrica"].minutos % 60)}min`;
+
+      document.getElementById("diasHidraulica").textContent = totais["Hidraulica"].dias;
+      document.getElementById("totalHidraulica").textContent = `${Math.floor(totais["Hidraulica"].minutos / 60)}h${Math.floor(totais["Hidraulica"].minutos % 60)}min`;
+
+      document.getElementById("diasCivil").textContent = totais["Manutenção Civil"].dias;
+      document.getElementById("totalCivil").textContent = `${Math.floor(totais["Manutenção Civil"].minutos / 60)}h${Math.floor(totais["Manutenção Civil"].minutos % 60)}min`;
     }
   </script>
 </body>
