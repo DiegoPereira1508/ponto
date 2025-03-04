@@ -13,16 +13,116 @@
     <button onclick="login()">Entrar</button>
   </div>
 
-  <div id="app" style="display: none;">
-    <h1>Registrar Ponto</h1>
-    <button onclick="registrarEntrada()">Registrar Entrada</button>
-    <button onclick="registrarSaida()">Registrar Saída</button>
-    <h2>Meus Registros</h2>
-    <ul id="registros"></ul>
-    <h2>Total do Dia</h2>
-    <p id="total"></p>
-  </div>
+ <div id="app" style="display: none;">
+  <h1>Registrar Ponto</h1>
+  <label for="tipoTrabalho">Tipo de Trabalho:</label>
+  <select id="tipoTrabalho">
+    <option value="Elétrica">Elétrica</option>
+    <option value="Hidraulica">Hidráulica</option>
+    <option value="Manutenção Civil">Manutenção Civil</option>
+  </select>
+  <button onclick="registrarEntrada()">Registrar Entrada</button>
+  <button onclick="registrarSaida()">Registrar Saída</button>
+  <h2>Meus Registros</h2>
+  <ul id="registros"></ul>
+  <h2>Total do Dia</h2>
+  <p id="total"></p>
+</div>
 
-  <script src="script.js"></script>
-</body>
-</html>
+<script>
+  // Dados de usuários (simplificado)
+  const usuarios = {
+    "usuario1": "senha1",
+    "usuario2": "senha2"
+  };
+
+  // Dados de horários (armazenados no localStorage)
+  let horarios = JSON.parse(localStorage.getItem("horarios")) || [];
+
+  // Função de login
+  function login() {
+    const username = document.getElementById("username").value;
+    if (usuarios[username]) {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      carregarRegistros();
+    } else {
+      alert("Usuário inválido!");
+    }
+  }
+
+  // Registrar entrada
+  function registrarEntrada() {
+    const tipoTrabalho = document.getElementById("tipoTrabalho").value;
+    const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
+    const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // Remove os segundos
+    horarios.push({ tipo: "Entrada", data, horario, tipoTrabalho });
+    localStorage.setItem("horarios", JSON.stringify(horarios));
+    carregarRegistros();
+  }
+
+  // Registrar saída
+  function registrarSaida() {
+    const tipoTrabalho = document.getElementById("tipoTrabalho").value;
+    const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
+    const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // Remove os segundos
+    horarios.push({ tipo: "Saída", data, horario, tipoTrabalho });
+    localStorage.setItem("horarios", JSON.stringify(horarios));
+    carregarRegistros();
+    calcularTotal();
+  }
+
+  // Carregar registros na tela
+  function carregarRegistros() {
+    const lista = document.getElementById("registros");
+    lista.innerHTML = horarios.map(h => `<li>${h.data} - ${h.tipo} (${h.tipoTrabalho}): ${h.horario}</li>`).join("");
+  }
+
+  // Calcular total de horas por tipo de trabalho
+  function calcularTotal() {
+    const totais = {
+      "Elétrica": 0,
+      "Hidraulica": 0,
+      "Manutenção Civil": 0
+    };
+
+    // Agrupa entradas e saídas por tipo de trabalho
+    const registrosPorTipo = {
+      "Elétrica": { entradas: [], saidas: [] },
+      "Hidraulica": { entradas: [], saidas: [] },
+      "Manutenção Civil": { entradas: [], saidas: [] }
+    };
+
+    horarios.forEach(registro => {
+      if (registro.tipo === "Entrada") {
+        registrosPorTipo[registro.tipoTrabalho].entradas.push({ data: registro.data, horario: registro.horario });
+      } else if (registro.tipo === "Saída") {
+        registrosPorTipo[registro.tipoTrabalho].saidas.push({ data: registro.data, horario: registro.horario });
+      }
+    });
+
+    // Calcula o total de minutos para cada tipo de trabalho
+    for (const tipo in registrosPorTipo) {
+      const entradas = registrosPorTipo[tipo].entradas;
+      const saidas = registrosPorTipo[tipo].saidas;
+
+      for (let i = 0; i < entradas.length; i++) {
+        const entrada = new Date(`${entradas[i].data}T${entradas[i].horario}:00`);
+        const saida = new Date(`${saidas[i].data}T${saidas[i].horario}:00`);
+        const diferenca = saida - entrada;
+        const minutos = diferenca / 60000; // Converter milissegundos para minutos
+        totais[tipo] += minutos;
+      }
+    }
+
+    // Exibe o total de horas por tipo de trabalho
+    let resultado = "";
+    for (const tipo in totais) {
+      const horas = Math.floor(totais[tipo] / 60);
+      const minutos = Math.floor(totais[tipo] % 60);
+      resultado += `${tipo}: ${horas}h${minutos}min<br>`;
+    }
+
+    document.getElementById("total").innerHTML = resultado;
+  }
+</script>
