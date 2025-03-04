@@ -1,145 +1,186 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Relógio Ponto</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-    }
-    input, select, button {
-      margin: 5px;
-      padding: 10px;
-    }
-    ul {
-      list-style-type: none;
-      padding: 0;
-    }
-    li {
-      margin: 5px 0;
-    }
-    .bloco {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-top: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Registro de Ponto</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+        h1, h2 {
+            margin-top: 20px;
+        }
+        #status {
+            font-weight: bold;
+            color: green;
+        }
+    </style>
 </head>
 <body>
 
 <h1>Registrar Ponto</h1>
+<p>Data de hoje: <span id="dataHoje"></span></p>
 
 <select id="tipoTrabalho">
-  <option value="Elétrica">Elétrica</option>
-  <option value="Hidráulica">Hidráulica</option>
-  <option value="Manutenção Civil">Manutenção Civil</option>
+    <option value="Elétrica">Elétrica</option>
+    <option value="Hidráulica">Hidráulica</option>
+    <option value="Manutenção Civil">Manutenção Civil</option>
 </select>
 
-<button onclick="registrar('Entrada')">Entrada</button>
-<button onclick="registrar('Saída')">Saída</button>
+<button onclick="registrarEntrada()">Entrada</button>
+<button onclick="registrarSaida()">Saída</button>
 <button onclick="limparRegistros()">Limpar Registros</button>
+<button onclick="exportarCSV()">Exportar CSV</button>
+<button onclick="sair()">Sair</button>
 
 <h2>Registros do Dia</h2>
-<ul id="registros"></ul>
-<p id="totalHoje"></p>
+<ul id="registrosDoDia"></ul>
+<p id="totalHoje">Total hoje: 0 min</p>
+<p>Status: <span id="status">Nenhum registro</span></p>
 
 <h2>Resumo Mensal</h2>
-<p>Elétrica: <span id="resumoEletrica">0h 0min</span></p>
-<p>Hidráulica: <span id="resumoHidraulica">0h 0min</span></p>
-<p>Manutenção Civil: <span id="resumoCivil">0h 0min</span></p>
+<div id="resumoMensal"></div>
 
 <script>
-let horarios = JSON.parse(localStorage.getItem('horarios')) || [];
+let registros = JSON.parse(localStorage.getItem('registros')) || [];
 
-function registrar(tipo) {
-    const trabalho = document.getElementById("tipoTrabalho").value;
-    const data = new Date();
-    const hora = data.getHours().toString().padStart(2, '0') + ":" + data.getMinutes().toString().padStart(2, '0');
+function registrarEntrada() {
+    const tipo = document.getElementById('tipoTrabalho').value;
+    const horaAtual = obterHoraAtual();
+    registros.push({ tipo, acao: 'Entrada', hora: horaAtual, data: dataAtual() });
+    salvarRegistros();
+    atualizarTela();
+}
 
-    horarios.push({ tipo, trabalho, data: data.toLocaleDateString('pt-BR'), hora });
-    localStorage.setItem("horarios", JSON.stringify(horarios));
-    
-    carregarRegistros();
-    calcularTotalHoje();
+function registrarSaida() {
+    const tipo = document.getElementById('tipoTrabalho').value;
+    const hoje = dataAtual();
+    const ultEntrada = registros.findLast(r => r.tipo === tipo && r.acao === 'Entrada' && r.data === hoje);
 
-    if (tipo === 'Saída') {
-        calcularResumoMensal();
+    if (!ultEntrada) {
+        alert(`Não há entrada registrada para ${tipo} hoje.`);
+        return;
+    }
+
+    const horaAtual = obterHoraAtual();
+    registros.push({ tipo, acao: 'Saída', hora: horaAtual, data: dataAtual() });
+    salvarRegistros();
+    atualizarTela();
+}
+
+function obterHoraAtual() {
+    const agora = new Date();
+    return agora.toTimeString().slice(0, 5);
+}
+
+function dataAtual() {
+    return new Date().toLocaleDateString('pt-BR');
+}
+
+function salvarRegistros() {
+    localStorage.setItem('registros', JSON.stringify(registros));
+}
+
+function limparRegistros() {
+    registros = [];
+    salvarRegistros();
+    atualizarTela();
+}
+
+function sair() {
+    if (confirm('Tem certeza que deseja sair?')) {
+        window.close();
     }
 }
 
-function carregarRegistros() {
-    const lista = document.getElementById("registros");
-    lista.innerHTML = "";
-
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const registrosHoje = horarios.filter(h => h.data === hoje);
-
-    registrosHoje.forEach(registro => {
-        const item = document.createElement("li");
-        item.textContent = `${registro.tipo} - ${registro.trabalho}: ${registro.hora}`;
-        lista.appendChild(item);
-    });
-
+function atualizarTela() {
+    document.getElementById('dataHoje').textContent = dataAtual();
+    mostrarRegistrosDoDia();
     calcularTotalHoje();
+    atualizarResumoMensal();
+    atualizarStatus();
+}
+
+function mostrarRegistrosDoDia() {
+    const lista = document.getElementById('registrosDoDia');
+    lista.innerHTML = '';
+    const hoje = dataAtual();
+    registros.filter(r => r.data === hoje).forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = `${r.acao} - ${r.tipo}: ${r.hora}`;
+        lista.appendChild(li);
+    });
 }
 
 function calcularTotalHoje() {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const registrosHoje = horarios.filter(h => h.data === hoje);
+    const hoje = dataAtual();
+    const registrosHoje = registros.filter(r => r.data === hoje);
 
     let totalMinutos = 0;
-
     for (let i = 0; i < registrosHoje.length; i += 2) {
-        if (registrosHoje[i] && registrosHoje[i + 1]) {
-            const entrada = horaParaMinutos(registrosHoje[i].hora);
-            const saida = horaParaMinutos(registrosHoje[i + 1].hora);
-            totalMinutos += (saida - entrada);
+        if (registrosHoje[i + 1]) {
+            totalMinutos += diferencaMinutos(registrosHoje[i].hora, registrosHoje[i + 1].hora);
         }
     }
 
-    document.getElementById("totalHoje").textContent = `Total hoje: ${totalMinutos} min`;
+    document.getElementById('totalHoje').textContent = `Total hoje: ${totalMinutos} min`;
 }
 
-function calcularResumoMensal() {
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth() + 1;
-    const anoAtual = hoje.getFullYear();
+function atualizarResumoMensal() {
+    const resumo = document.getElementById('resumoMensal');
+    resumo.innerHTML = '';
+    const mapaResumo = {};
 
-    const totais = {
-        "Elétrica": 0,
-        "Hidráulica": 0,
-        "Manutenção Civil": 0
-    };
-
-    const registrosDoMes = horarios.filter(h => {
-        const partesData = h.data.split('/');
-        const dia = parseInt(partesData[0], 10);
-        const mes = parseInt(partesData[1], 10);
-        const ano = parseInt(partesData[2], 10);
-        return mes === mesAtual && ano === anoAtual;
-    });
-
-    const entradas = {};
-    registrosDoMes.forEach(reg => {
-        if (reg.tipo === 'Entrada') {
-            entradas[reg.trabalho] = horaParaMinutos(reg.hora);
-        } else if (reg.tipo === 'Saída' && entradas[reg.trabalho] !== undefined) {
-            const saida = horaParaMinutos(reg.hora);
-            totais[reg.trabalho] += (saida - entradas[reg.trabalho]);
-            delete entradas[reg.trabalho]; // Reseta para próximo par entrada/saída
+    registros.forEach(r => {
+        if (!mapaResumo[r.tipo]) mapaResumo[r.tipo] = {};
+        if (!mapaResumo[r.tipo][r.data]) mapaResumo[r.tipo][r.data] = { minutos: 0 };
+        if (r.acao === 'Entrada') {
+            mapaResumo[r.tipo][r.data].entrada = r.hora;
+        } else if (r.acao === 'Saída' && mapaResumo[r.tipo][r.data].entrada) {
+            const duracao = diferencaMinutos(mapaResumo[r.tipo][r.data].entrada, r.hora);
+            mapaResumo[r.tipo][r.data].minutos += duracao;
+            delete mapaResumo[r.tipo][r.data].entrada; 
         }
     });
 
-    mostrarResumoMensal(totais);
+    for (let tipo in mapaResumo) {
+        const tipoDiv = document.createElement('div');
+        tipoDiv.innerHTML = `<strong>${tipo}</strong>`;
+        for (let data in mapaResumo[tipo]) {
+            const minutos = mapaResumo[tipo][data].minutos;
+            tipoDiv.innerHTML += `<p>${data}: ${formatarMinutos(minutos)}</p>`;
+        }
+        resumo.appendChild(tipoDiv);
+    }
 }
 
-function mostrarResumoMensal(totais) {
-    document.getElementById('resumoEletrica').textContent = formatarMinutos(totais['Elétrica']);
-    document.getElementById('resumoHidraulica').textContent = formatarMinutos(totais['Hidráulica']);
-    document.getElementById('resumoCivil').textContent = formatarMinutos(totais['Manutenção Civil']);
+function atualizarStatus() {
+    const hoje = dataAtual();
+    const registrosHoje = registros.filter(r => r.data === hoje);
+    const temEntrada = registrosHoje.some(r => r.acao === 'Entrada');
+    const temSaida = registrosHoje.some(r => r.acao === 'Saída');
+
+    const status = document.getElementById('status');
+    if (temEntrada && !temSaida) {
+        status.textContent = 'Em andamento';
+        status.style.color = 'orange';
+    } else if (temEntrada && temSaida) {
+        status.textContent = 'Concluído';
+        status.style.color = 'green';
+    } else {
+        status.textContent = 'Nenhum registro';
+        status.style.color = 'red';
+    }
+}
+
+function diferencaMinutos(h1, h2) {
+    return horaParaMinutos(h2) - horaParaMinutos(h1);
 }
 
 function horaParaMinutos(hora) {
@@ -148,22 +189,25 @@ function horaParaMinutos(hora) {
 }
 
 function formatarMinutos(minutos) {
-    const horas = Math.floor(minutos / 60);
-    const min = minutos % 60;
-    return `${horas}h ${min}min`;
+    const h = Math.floor(minutos / 60);
+    const m = minutos % 60;
+    return `${h}h ${m}min`;
 }
 
-function limparRegistros() {
-    horarios = [];
-    localStorage.removeItem('horarios');
-    carregarRegistros();
-    calcularResumoMensal();
+function exportarCSV() {
+    let csv = "Data;Tipo;Ação;Hora\n";
+    registros.forEach(r => {
+        csv += `${r.data};${r.tipo};${r.acao};${r.hora}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'registros_ponto.csv';
+    link.click();
 }
 
-window.onload = () => {
-    carregarRegistros();
-    calcularResumoMensal();
-};
+window.onload = atualizarTela;
 </script>
 
 </body>
