@@ -17,14 +17,15 @@
       background-image: url('background.jpg');
       background-size: cover;
       background-position: center;
+      overflow: hidden;
     }
     #login, #app {
       background-color: rgba(255, 255, 255, 0.9);
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      max-width: 400px;
       width: 90%;
+      max-width: 500px;
       text-align: center;
       overflow-y: auto;
       max-height: 90vh;
@@ -53,6 +54,7 @@
     ul {
       list-style-type: none;
       padding: 0;
+      text-align: left;
     }
     li {
       background: #f9f9f9;
@@ -71,6 +73,19 @@
     .bloco-trabalho h3 {
       color: #003366;
     }
+    .aviso {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #ffcc00;
+      color: #003366;
+      padding: 10px;
+      border-radius: 5px;
+      width: 80%;
+      text-align: center;
+      display: none;
+    }
     @media (max-width: 600px) {
       #login, #app {
         max-width: 100%;
@@ -86,12 +101,12 @@
   </style>
 </head>
 <body>
+  <div class="aviso" id="aviso"></div>
   <div id="login">
     <h1>Login</h1>
     <input type="text" id="username" placeholder="Usuário" onkeypress="handleEnter(event)">
     <input type="password" id="password" placeholder="Senha" onkeypress="handleEnter(event)">
     <button onclick="login()">Entrar</button>
-    <p id="mensagem"></p>
   </div>
 
   <div id="app" style="display: none;">
@@ -104,13 +119,12 @@
     </select>
     <button onclick="registrarEntrada()">Registrar Entrada</button>
     <button onclick="registrarSaida()">Registrar Saída</button>
+    <button onclick="limparRegistros()">Limpar Registros</button>
     <h2>Meus Registros</h2>
     <ul id="registros"></ul>
     <h2>Total do Dia</h2>
     <p id="total"></p>
-    <p id="mensagemRegistro"></p>
 
-    <!-- Blocos de trabalho -->
     <div class="bloco-trabalho">
       <h3>Elétrica</h3>
       <p>Dias trabalhados: <span id="diasEletrica">0</span></p>
@@ -149,33 +163,30 @@
     function login() {
       const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
-      const mensagem = document.getElementById("mensagem");
 
       if (usuarios[username] && usuarios[username].senha === password) {
         document.getElementById("login").style.display = "none";
         document.getElementById("app").style.display = "block";
         carregarRegistros();
         atualizarBlocosTrabalho();
-        mensagem.textContent = "";
+        esconderAviso();
       } else {
-        mensagem.textContent = "Usuário ou senha inválidos!";
+        mostrarAviso("Usuário ou senha inválidos!");
       }
     }
 
     // Registrar entrada
     function registrarEntrada() {
       const tipoTrabalho = document.getElementById("tipoTrabalho").value;
-      const mensagemRegistro = document.getElementById("mensagemRegistro");
 
       if (!tipoTrabalho) {
-        mensagemRegistro.textContent = "Selecione um tipo de trabalho!";
+        mostrarAviso("Selecione um tipo de trabalho!");
         return;
       }
 
-      // Verifica se já existe uma entrada sem saída
       const ultimoRegistro = horarios[horarios.length - 1];
       if (ultimoRegistro && ultimoRegistro.tipo === "Entrada") {
-        mensagemRegistro.textContent = "Erro: Já existe uma entrada sem saída!";
+        mostrarAviso("Erro: Já existe uma entrada sem saída!");
         return;
       }
 
@@ -184,23 +195,21 @@
       horarios.push({ tipo: "Entrada", data, horario, tipoTrabalho });
       localStorage.setItem("horarios", JSON.stringify(horarios));
       carregarRegistros();
-      mensagemRegistro.textContent = "";
+      esconderAviso();
     }
 
     // Registrar saída
     function registrarSaida() {
       const tipoTrabalho = document.getElementById("tipoTrabalho").value;
-      const mensagemRegistro = document.getElementById("mensagemRegistro");
 
       if (!tipoTrabalho) {
-        mensagemRegistro.textContent = "Selecione um tipo de trabalho!";
+        mostrarAviso("Selecione um tipo de trabalho!");
         return;
       }
 
-      // Verifica se a última ação foi uma entrada
       const ultimoRegistro = horarios[horarios.length - 1];
       if (!ultimoRegistro || ultimoRegistro.tipo !== "Entrada") {
-        mensagemRegistro.textContent = "Erro: Não há uma entrada registrada para esta saída!";
+        mostrarAviso("Erro: Não há uma entrada registrada para esta saída!");
         return;
       }
 
@@ -211,7 +220,19 @@
       carregarRegistros();
       calcularTotal();
       atualizarBlocosTrabalho();
-      mensagemRegistro.textContent = "";
+      esconderAviso();
+    }
+
+    // Exibir aviso
+    function mostrarAviso(mensagem) {
+      const aviso = document.getElementById("aviso");
+      aviso.textContent = mensagem;
+      aviso.style.display = "block";
+    }
+
+    // Esconder aviso
+    function esconderAviso() {
+      document.getElementById("aviso").style.display = "none";
     }
 
     // Carregar registros na tela
@@ -219,7 +240,6 @@
       const lista = document.getElementById("registros");
       const registrosAgrupados = {};
 
-      // Agrupa registros por data
       horarios.forEach(registro => {
         if (!registrosAgrupados[registro.data]) {
           registrosAgrupados[registro.data] = [];
@@ -227,7 +247,6 @@
         registrosAgrupados[registro.data].push(registro);
       });
 
-      // Exibe os registros agrupados por data de forma compacta
       lista.innerHTML = Object.keys(registrosAgrupados).map(data => `
         <li>
           <strong>${data}</strong>
@@ -249,7 +268,6 @@
         "Manutenção Civil": 0
       };
 
-      // Agrupa entradas e saídas por tipo de trabalho
       const registrosPorTipo = {
         "Elétrica": { entradas: [], saidas: [] },
         "Hidraulica": { entradas: [], saidas: [] },
@@ -264,7 +282,6 @@
         }
       });
 
-      // Calcula o total de minutos para cada tipo de trabalho
       for (const tipo in registrosPorTipo) {
         const entradas = registrosPorTipo[tipo].entradas;
         const saidas = registrosPorTipo[tipo].saidas;
@@ -278,7 +295,6 @@
         }
       }
 
-      // Exibe o total de horas por tipo de trabalho
       let resultado = "";
       for (const tipo in totais) {
         const horas = Math.floor(totais[tipo] / 60);
@@ -292,8 +308,8 @@
     // Atualizar blocos de trabalho
     function atualizarBlocosTrabalho() {
       const hoje = new Date();
-      const mesAtual = hoje.getMonth() + 1; // Mês atual (1 a 12)
-      const anoAtual = hoje.getFullYear(); // Ano atual
+      const mesAtual = hoje.getMonth() + 1;
+      const anoAtual = hoje.getFullYear();
 
       const totais = {
         "Elétrica": { dias: 0, minutos: 0 },
@@ -301,13 +317,11 @@
         "Manutenção Civil": { dias: 0, minutos: 0 }
       };
 
-      // Filtra registros do mês atual
       const registrosMesAtual = horarios.filter(registro => {
         const dataRegistro = new Date(registro.data.split('/').reverse().join('-'));
         return dataRegistro.getMonth() + 1 === mesAtual && dataRegistro.getFullYear() === anoAtual;
       });
 
-      // Agrupa entradas e saídas por tipo de trabalho
       const registrosPorTipo = {
         "Elétrica": { entradas: [], saidas: [] },
         "Hidraulica": { entradas: [], saidas: [] },
@@ -322,23 +336,21 @@
         }
       });
 
-      // Calcula o total de minutos e dias trabalhados para cada tipo de trabalho
       for (const tipo in registrosPorTipo) {
         const entradas = registrosPorTipo[tipo].entradas;
         const saidas = registrosPorTipo[tipo].saidas;
 
-        totais[tipo].dias = entradas.length; // Número de dias trabalhados
+        totais[tipo].dias = entradas.length;
 
         for (let i = 0; i < entradas.length; i++) {
           const entrada = new Date(`${entradas[i].data}T${entradas[i].horario}`);
           const saida = new Date(`${saidas[i].data}T${saidas[i].horario}`);
           const diferenca = saida - entrada;
-          const minutos = diferenca / 60000; // Converter milissegundos para minutos
+          const minutos = diferenca / 60000;
           totais[tipo].minutos += minutos;
         }
       }
 
-      // Atualiza os blocos de trabalho
       document.getElementById("diasEletrica").textContent = totais["Elétrica"].dias;
       document.getElementById("totalEletrica").textContent = `${Math.floor(totais["Elétrica"].minutos / 60)}h${Math.floor(totais["Elétrica"].minutos % 60)}min`;
 
@@ -347,6 +359,16 @@
 
       document.getElementById("diasCivil").textContent = totais["Manutenção Civil"].dias;
       document.getElementById("totalCivil").textContent = `${Math.floor(totais["Manutenção Civil"].minutos / 60)}h${Math.floor(totais["Manutenção Civil"].minutos % 60)}min`;
+    }
+
+    // Limpar registros
+    function limparRegistros() {
+      horarios = [];
+      localStorage.setItem("horarios", JSON.stringify(horarios));
+      carregarRegistros();
+      calcularTotal();
+      atualizarBlocosTrabalho();
+      esconderAviso();
     }
   </script>
 </body>
