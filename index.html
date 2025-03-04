@@ -15,7 +15,7 @@
       align-items: center;
       height: 100vh;
     }
-    #login, #app {
+    #app {
       background-color: #fff;
       padding: 20px;
       border-radius: 10px;
@@ -27,7 +27,7 @@
     h1 {
       color: #003366;
     }
-    input, select, button {
+    select, button {
       margin: 10px 0;
       padding: 10px;
       width: 100%;
@@ -57,14 +57,7 @@
 </head>
 <body>
 
-<div id="login">
-  <h1>Login</h1>
-  <input type="text" id="username" placeholder="Usuário" onkeypress="handleEnter(event)">
-  <input type="password" id="password" placeholder="Senha" onkeypress="handleEnter(event)">
-  <button onclick="login()">Entrar</button>
-</div>
-
-<div id="app" style="display:none;">
+<div id="app">
   <h1>Registro de Ponto</h1>
 
   <select id="tipoTrabalho">
@@ -81,28 +74,14 @@
   <h2>Registros</h2>
   <ul id="registros"></ul>
 
-  <h3>Total do Dia: <span id="totalDia"></span></h3>
+  <h3>Total do Dia: <span id="totalDia">0h 0min</span></h3>
   <p class="aviso" id="aviso" style="display:none;"></p>
 </div>
 
 <script>
-  const usuarios = { usuario1: "senha1", usuario2: "senha2" };
   let registros = JSON.parse(localStorage.getItem('registros')) || [];
 
-  function handleEnter(e) { if (e.key === 'Enter') login(); }
-
-  function login() {
-    const user = document.getElementById('username').value;
-    const pass = document.getElementById('password').value;
-    if (usuarios[user] === pass) {
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      carregarRegistros();
-    } else {
-      alert('Usuário ou senha inválidos!');
-    }
-  }
-
+  // Função para registrar entrada
   function registrarEntrada() {
     const tipo = document.getElementById('tipoTrabalho').value;
     if (!tipo) return alerta('Selecione o tipo de trabalho.');
@@ -116,6 +95,7 @@
     salvarEAtualizar();
   }
 
+  // Função para registrar saída
   function registrarSaida() {
     const tipo = document.getElementById('tipoTrabalho').value;
     if (!tipo) return alerta('Selecione o tipo de trabalho.');
@@ -129,23 +109,27 @@
     salvarEAtualizar();
   }
 
+  // Verifica se há uma entrada sem saída para o tipo de trabalho
   function verificaEntradaSemSaida(tipo) {
     const entradas = registros.filter(r => r.tipo === tipo && r.acao === 'Entrada');
     const saidas = registros.filter(r => r.tipo === tipo && r.acao === 'Saída');
     return entradas.length > saidas.length;
   }
 
+  // Verifica se há uma entrada pendente para o tipo de trabalho
   function verificaUltimaEntrada(tipo) {
     const entradas = registros.filter(r => r.tipo === tipo && r.acao === 'Entrada');
     const saidas = registros.filter(r => r.tipo === tipo && r.acao === 'Saída');
     return entradas.length > saidas.length;
   }
 
+  // Salva os registros no localStorage e atualiza a interface
   function salvarEAtualizar() {
     localStorage.setItem('registros', JSON.stringify(registros));
     carregarRegistros();
   }
 
+  // Carrega os registros na interface
   function carregarRegistros() {
     const ul = document.getElementById('registros');
     ul.innerHTML = '';
@@ -159,6 +143,7 @@
     calcularTotalDia();
   }
 
+  // Calcula o total de horas trabalhadas no dia
   function calcularTotalDia() {
     let minutosTotais = 0;
 
@@ -175,23 +160,35 @@
       });
     });
 
-    document.getElementById('totalDia').textContent = `${Math.floor(minutosTotais / 60)}h${minutosTotais % 60}min`;
+    const horas = Math.floor(minutosTotais / 60);
+    const minutos = Math.floor(minutosTotais % 60);
+    document.getElementById('totalDia').textContent = `${horas}h${minutos}min`;
   }
 
+  // Gera um PDF com os registros
   function gerarPDF() {
     const doc = new jsPDF();
+    doc.setFontSize(16);
     doc.text('Registros de Ponto', 10, 10);
-    registros.forEach((r, i) => doc.text(`${r.tipo} - ${r.acao} - ${r.horario}`, 10, 20 + (i * 5)));
+    doc.setFontSize(12);
+
+    registros.forEach((r, i) => {
+      doc.text(`${r.tipo} - ${r.acao} - ${r.horario}`, 10, 20 + (i * 10));
+    });
 
     doc.save('RegistroPonto.pdf');
   }
 
+  // Exibe uma mensagem de aviso
   function alerta(msg) {
     const aviso = document.getElementById('aviso');
     aviso.textContent = msg;
     aviso.style.display = 'block';
     setTimeout(() => aviso.style.display = 'none', 4000);
   }
+
+  // Carrega os registros ao iniciar
+  carregarRegistros();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
