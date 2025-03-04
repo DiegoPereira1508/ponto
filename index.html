@@ -1,187 +1,143 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <title>Registro de Ponto</title>
-    <style>
-        body {
-            background-color: #f0f0f5;
-            font-family: Arial, sans-serif;
-            padding: 20px;
-        }
-        #login, #registro {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            max-width: 400px;
-            margin: auto;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        table, th, td {
-            border: 1px solid #ccc;
-        }
-        th, td {
-            padding: 8px;
-            text-align: center;
-        }
-        #registro {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relógio Ponto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f8ff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    #login, #app {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      width: 300px;
+      text-align: center;
+    }
+    input, select, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #003366;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #002244;
+    }
+    .hidden { display: none; }
+  </style>
 </head>
 <body>
+  <div id="login">
+    <h1>Login</h1>
+    <input type="text" id="username" placeholder="Usuário">
+    <input type="password" id="password" placeholder="Senha">
+    <button onclick="login()">Entrar</button>
+  </div>
 
-<div id="login">
-    <h3>Login</h3>
-    <input type="text" id="usuario" placeholder="Usuário">
-    <input type="password" id="senha" placeholder="Senha" onkeydown="if(event.key==='Enter') validarLogin()">
-    <button onclick="validarLogin()">Entrar</button>
-</div>
-
-<div id="registro">
-    <h3>Registro de Ponto</h3>
+  <div id="app" class="hidden">
+    <h1>Registrar Ponto</h1>
     <select id="tipoServico">
-        <option value="Elétrica">Elétrica</option>
-        <option value="Manutenção Civil">Manutenção Civil</option>
-        <option value="Hidráulica">Hidráulica</option>
+      <option value="Elétrica">Elétrica</option>
+      <option value="Hidráulica">Hidráulica</option>
+      <option value="Manutenção Civil">Manutenção Civil</option>
     </select>
     <button onclick="registrarEntrada()">Registrar Entrada</button>
     <button onclick="registrarSaida()">Registrar Saída</button>
-    <button onclick="gerarPDF()">Gerar PDF</button>
-    <table id="tabelaRegistros">
-        <thead>
-            <tr>
-                <th>Serviço</th>
-                <th>Entrada</th>
-                <th>Saída</th>
-                <th>Horas Trabalhadas</th>
-                <th>Valor</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</div>
+    <button onclick="gerarPDF()">Baixar PDF</button>
+    <button onclick="logout()">Sair</button>
+    <h2>Registros</h2>
+    <ul id="listaRegistros"></ul>
+  </div>
 
-<script>
-    const valoresHora = {
-        'Elétrica': 103,
-        'Manutenção Civil': 97,
-        'Hidráulica': 97.5
-    };
+  <script>
+    const users = { "admin": "1234" };
+    let registros = JSON.parse(localStorage.getItem("registros")) || {};
 
-    let registros = JSON.parse(localStorage.getItem('registros')) || {};
+    function login() {
+      const user = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
+      if (users[user] === pass) {
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        atualizarTela();
+      } else {
+        alert("Usuário ou senha incorretos");
+      }
+    }
 
-    function validarLogin() {
-        const usuario = document.getElementById('usuario').value;
-        const senha = document.getElementById('senha').value;
-
-        if (usuario === 'admin' && senha === '1234') {
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('registro').style.display = 'block';
-            atualizarTela();
-        } else {
-            alert('Usuário ou senha incorretos!');
-        }
+    function logout() {
+      document.getElementById("login").classList.remove("hidden");
+      document.getElementById("app").classList.add("hidden");
     }
 
     function registrarEntrada() {
-        const tipo = document.getElementById('tipoServico').value;
-
-        if (!registros[tipo]) registros[tipo] = [];
-        const entradaAberta = registros[tipo].some(r => !r.saida);
-
-        if (entradaAberta) {
-            alert(`Erro: Já existe entrada em aberto para ${tipo}. Finalize a saída primeiro.`);
-            return;
-        }
-
-        registros[tipo].push({ entrada: new Date(), saida: null });
-        salvarRegistros();
-        atualizarTela();
+      const tipo = document.getElementById("tipoServico").value;
+      if (!registros[tipo]) registros[tipo] = [];
+      if (registros[tipo].some(r => !r.saida)) {
+        alert(`Erro: Já existe uma entrada em aberto para ${tipo}`);
+        return;
+      }
+      registros[tipo].push({ entrada: new Date().toLocaleString(), saida: null });
+      salvarRegistros();
+      atualizarTela();
     }
 
     function registrarSaida() {
-        const tipo = document.getElementById('tipoServico').value;
-        const registroAtual = registros[tipo].find(r => !r.saida);
-
-        if (!registroAtual) {
-            alert('Nenhuma entrada aberta encontrada para esse serviço.');
-            return;
-        }
-
-        registroAtual.saida = new Date();
-        salvarRegistros();
-        atualizarTela();
-        enviarEmail(tipo, registroAtual);
+      const tipo = document.getElementById("tipoServico").value;
+      const registro = registros[tipo]?.find(r => !r.saida);
+      if (!registro) {
+        alert("Erro: Nenhuma entrada registrada para esta saída");
+        return;
+      }
+      registro.saida = new Date().toLocaleString();
+      salvarRegistros();
+      atualizarTela();
     }
 
     function salvarRegistros() {
-        localStorage.setItem('registros', JSON.stringify(registros));
+      localStorage.setItem("registros", JSON.stringify(registros));
     }
 
     function atualizarTela() {
-        const tbody = document.querySelector('#tabelaRegistros tbody');
-        tbody.innerHTML = '';
-
-        for (const tipo in registros) {
-            registros[tipo].forEach(reg => {
-                const tr = document.createElement('tr');
-                const horasTrabalhadas = calcularHoras(reg.entrada, reg.saida);
-                const valor = horasTrabalhadas * valoresHora[tipo];
-
-                tr.innerHTML = `
-                    <td>${tipo}</td>
-                    <td>${formatarData(reg.entrada)}</td>
-                    <td>${reg.saida ? formatarData(reg.saida) : '-'}</td>
-                    <td>${horasTrabalhadas.toFixed(2)}</td>
-                    <td>R$ ${valor.toFixed(2)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-    }
-
-    function calcularHoras(entrada, saida) {
-        if (!saida) return 0;
-        const ms = new Date(saida) - new Date(entrada);
-        return ms / (1000 * 60 * 60);
-    }
-
-    function formatarData(data) {
-        if (!data) return '-';
-        const d = new Date(data);
-        return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+      const lista = document.getElementById("listaRegistros");
+      lista.innerHTML = "";
+      for (const tipo in registros) {
+        registros[tipo].forEach(r => {
+          const li = document.createElement("li");
+          li.textContent = `${tipo}: Entrada - ${r.entrada} | Saída - ${r.saida || "Em andamento"}`;
+          lista.appendChild(li);
+        });
+      }
     }
 
     function gerarPDF() {
-        const pdf = new jsPDF();
-        pdf.text('Relatório de Ponto', 10, 10);
-
-        let y = 20;
-        for (const tipo in registros) {
-            registros[tipo].forEach(reg => {
-                const horas = calcularHoras(reg.entrada, reg.saida).toFixed(2);
-                const valor = (horas * valoresHora[tipo]).toFixed(2);
-
-                pdf.text(`${tipo} | Entrada: ${formatarData(reg.entrada)} | Saída: ${formatarData(reg.saida)} | Horas: ${horas} | Valor: R$ ${valor}`, 10, y);
-                y += 7;
-            });
-        }
-
-        pdf.save('RelatorioPonto.pdf');
+      let texto = "Relatório de Ponto\n\n";
+      for (const tipo in registros) {
+        texto += `\n${tipo}\n`;
+        registros[tipo].forEach(r => {
+          texto += `Entrada: ${r.entrada} | Saída: ${r.saida || "Em andamento"}\n`;
+        });
+      }
+      const blob = new Blob([texto], { type: "application/pdf" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "registro_ponto.pdf";
+      link.click();
     }
-
-    function enviarEmail(tipo, registro) {
-        const serviceID = 'seu_service_id';
-        const templateID = 'seu_template_id
+  </script>
+</body>
+</html>
