@@ -54,8 +54,13 @@
   // Registrar entrada
   function registrarEntrada() {
     const tipoTrabalho = document.getElementById("tipoTrabalho").value;
+    if (!tipoTrabalho) {
+      alert("Selecione um tipo de trabalho!");
+      return;
+    }
+
     const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
-    const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // Remove os segundos
+    const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); // Com segundos
     horarios.push({ tipo: "Entrada", data, horario, tipoTrabalho });
     localStorage.setItem("horarios", JSON.stringify(horarios));
     carregarRegistros();
@@ -64,8 +69,13 @@
   // Registrar saída
   function registrarSaida() {
     const tipoTrabalho = document.getElementById("tipoTrabalho").value;
+    if (!tipoTrabalho) {
+      alert("Selecione um tipo de trabalho!");
+      return;
+    }
+
     const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
-    const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // Remove os segundos
+    const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); // Com segundos
     horarios.push({ tipo: "Saída", data, horario, tipoTrabalho });
     localStorage.setItem("horarios", JSON.stringify(horarios));
     carregarRegistros();
@@ -107,8 +117,8 @@
       const saidas = registrosPorTipo[tipo].saidas;
 
       for (let i = 0; i < entradas.length; i++) {
-        const entrada = new Date(`${entradas[i].data}T${entradas[i].horario}:00`);
-        const saida = new Date(`${saidas[i].data}T${saidas[i].horario}:00`);
+        const entrada = new Date(`${entradas[i].data}T${entradas[i].horario}`);
+        const saida = new Date(`${saidas[i].data}T${saidas[i].horario}`);
         const diferenca = saida - entrada;
         const minutos = diferenca / 60000; // Converter milissegundos para minutos
         totais[tipo] += minutos;
