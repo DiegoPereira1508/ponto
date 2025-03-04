@@ -2,6 +2,8 @@
 <html lang="pt-BR">
 <head>
     <title>Registro de Ponto</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,10 +15,10 @@
             margin: 0;
         }
         .container {
-            background-color: #ffffff;
+            background-color: #fff;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             width: 350px;
         }
         button {
@@ -40,7 +42,6 @@
             background-color: #007bff;
             color: white;
             padding: 10px;
-            border-radius: 5px;
             text-align: center;
         }
     </style>
@@ -64,7 +65,7 @@
     <button onclick="registrarEntrada()">Entrada</button>
     <button onclick="registrarSaida()">Saída</button>
     <button onclick="limparRegistros()">Limpar Registros</button>
-    <button onclick="exportarCSV()">Exportar CSV</button>
+    <button onclick="exportarPDF()">Exportar PDF</button>
     <button onclick="sair()">Sair</button>
 
     <h3>Registros do Dia</h3>
@@ -76,11 +77,11 @@
 
 <script>
 let registros = JSON.parse(localStorage.getItem('registros')) || {};
-let valorHora = {
-    'Elétrica': 103,
-    'Hidráulica': 97.50,
-    'Manutenção Civil': 97
-};
+const valorHora = { 'Elétrica': 103, 'Hidráulica': 97.5, 'Manutenção Civil': 97 };
+
+document.getElementById('senha').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') login();
+});
 
 function login() {
     const usuario = document.getElementById('usuario').value;
@@ -114,7 +115,7 @@ function registrarSaida() {
         salvarRegistros();
         atualizarTela();
     } else {
-        alert('Nenhuma entrada aberta para este serviço.');
+        alert('Nenhuma entrada aberta para esse serviço.');
     }
 }
 
@@ -126,40 +127,24 @@ function atualizarTela() {
     const hoje = new Date().toLocaleDateString();
     let totalMinutos = 0;
     let htmlDia = '';
-    let resumoMensal = { 'Elétrica': 0, 'Hidráulica': 0, 'Manutenção Civil': 0 };
+    let resumo = { 'Elétrica': 0, 'Hidráulica': 0, 'Manutenção Civil': 0 };
 
     for (let tipo in registros) {
-        registros[tipo].forEach(reg => {
-            if (reg.entrada && reg.saida) {
-                const minutos = calcularDiferencaMinutos(reg.entrada, reg.saida);
-                if (new Date(reg.entrada).toLocaleDateString() === hoje) {
+        registros[tipo].forEach(r => {
+            if (r.entrada && r.saida) {
+                const minutos = calcularMinutos(r.entrada, r.saida);
+                if (new Date(r.entrada).toLocaleDateString() === hoje) {
                     totalMinutos += minutos;
-                    htmlDia += `${tipo} - Entrada: ${formatarHora(reg.entrada)}, Saída: ${formatarHora(reg.saida)}<br>`;
+                    htmlDia += `${tipo}: ${formatarHora(r.entrada)} - ${formatarHora(r.saida)} (${minutos} min)<br>`;
                 }
-                resumoMensal[tipo] += minutos;
+                resumo[tipo] += minutos;
             }
         });
     }
 
-    document.getElementById('registrosDia').innerHTML = htmlDia + `<strong>Total hoje: ${formatarHorasEMinutos(totalMinutos)}</strong>`;
-    let resumoHTML = '';
-    for (let tipo in resumoMensal) {
-        resumoHTML += `${tipo}: ${formatarHorasEMinutos(resumoMensal[tipo])}<br>`;
-    }
-    document.getElementById('resumoMensal').innerHTML = resumoHTML;
-}
-
-function calcularDiferencaMinutos(inicio, fim) {
-    return Math.floor((new Date(fim) - new Date(inicio)) / 60000);
-}
-
-function formatarHora(data) {
-    const d = new Date(data);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatarHorasEMinutos(minutos) {
-    return `${Math.floor(minutos / 60)}h ${minutos % 60}min`;
+    document.getElementById('registrosDia').innerHTML = htmlDia || 'Nenhum registro hoje';
+    document.getElementById('resumoMensal').innerHTML = 
+        Object.keys(resumo).map(tipo => `${tipo}: ${formatarHoras(resumo[tipo])}`).join('<br>');
 }
 
 function limparRegistros() {
@@ -168,42 +153,54 @@ function limparRegistros() {
     atualizarTela();
 }
 
-function exportarCSV() {
-    let linhas = ['Data;Serviço;Entrada;Saída;Tempo Trabalhado;Valor a Receber'];
+function calcularMinutos(inicio, fim) {
+    return Math.floor((new Date(fim) - new Date(inicio)) / 60000);
+}
 
+function formatarHora(data) {
+    return new Date(data).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatarHoras(minutos) {
+    return `${Math.floor(minutos / 60)}h ${minutos % 60}min`;
+}
+
+function exportarPDF() {
+    let registrosArray = [['Data', 'Serviço', 'Entrada', 'Saída', 'Horas Trabalhadas', 'Valor']];
     for (let tipo in registros) {
-        registros[tipo].forEach(reg => {
-            if (reg.saida) {
-                const data = new Date(reg.entrada).toLocaleDateString();
-                const entrada = formatarHora(reg.entrada);
-                const saida = formatarHora(reg.saida);
-                const minutos = calcularDiferencaMinutos(reg.entrada, reg.saida);
-                const tempo = formatarHorasEMinutos(minutos);
-                const valorMinuto = valorHora[tipo] / 60;
-                const valorReceber = (minutos * valorMinuto).toFixed(2).replace('.', ',');
+        registros[tipo].forEach(r => {
+            if (r.saida) {
+                const data = new Date(r.entrada).toLocaleDateString();
+                const entrada = formatarHora(r.entrada);
+                const saida = formatarHora(r.saida);
+                const minutos = calcularMinutos(r.entrada, r.saida);
+                const horas = formatarHoras(minutos);
+                const valor = ((valorHora[tipo] / 60) * minutos).toFixed(2).replace('.', ',');
 
-                linhas.push(`${data};${tipo};${entrada};${saida};${tempo};R$ ${valorReceber}`);
+                registrosArray.push([data, tipo, entrada, saida, horas, `R$ ${valor}`]);
             }
         });
     }
 
-    if (linhas.length === 1) {
+    if (registrosArray.length === 1) {
         alert('Nenhum registro para exportar.');
         return;
     }
 
-    const csv = linhas.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'registros_ponto.csv';
+    const docDefinition = {
+        content: [
+            { text: 'Relatório de Registro de Ponto', style: 'header' },
+            { text: `Data de Emissão: ${new Date().toLocaleDateString()}\n\n` },
+            {
+                table: { body: registrosArray }
+            }
+        ],
+        styles: {
+            header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] }
+        }
+    };
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // DICA: Para realmente "bloquear edição", o ideal é gerar PDF no futuro.
-    // CSV é só texto, sempre pode ser editado no bloco de notas.
+    pdfMake.createPdf(docDefinition).download('Registros_Ponto.pdf');
 }
 </script>
 
