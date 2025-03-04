@@ -76,6 +76,14 @@
     .bloco-trabalho h3 {
       color: #003366;
     }
+
+    /* Responsividade */
+    @media (max-width: 600px) {
+      #login, #app {
+        width: 100%;
+        padding: 10px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -165,13 +173,6 @@
         return;
       }
 
-      // Verifica se já existe uma entrada sem saída
-      const ultimoRegistro = horarios[horarios.length - 1];
-      if (ultimoRegistro && ultimoRegistro.tipo === "Entrada") {
-        mensagemRegistro.textContent = "Erro: Já existe uma entrada sem saída!";
-        return;
-      }
-
       const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
       const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); // Com segundos
       horarios.push({ tipo: "Entrada", data, horario, tipoTrabalho });
@@ -187,13 +188,6 @@
 
       if (!tipoTrabalho) {
         mensagemRegistro.textContent = "Selecione um tipo de trabalho!";
-        return;
-      }
-
-      // Verifica se a última ação foi uma entrada
-      const ultimoRegistro = horarios[horarios.length - 1];
-      if (!ultimoRegistro || ultimoRegistro.tipo !== "Entrada") {
-        mensagemRegistro.textContent = "Erro: Não há uma entrada registrada para esta saída!";
         return;
       }
 
