@@ -1,187 +1,169 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relógio Ponto</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f0f7ff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
       margin: 0;
-    }
-    #login, #app {
-      background-color: #fff;
       padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: 480px;
     }
-    button {
-      background-color: #007bff;
-      color: #fff;
-      border: none;
+    input, select, button {
+      margin: 5px;
       padding: 10px;
-      cursor: pointer;
     }
     ul {
+      list-style-type: none;
       padding: 0;
-      list-style: none;
     }
     li {
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
+      margin: 5px 0;
     }
-    .aviso {
-      color: #d9534f;
-      font-weight: bold;
-      margin: 8px 0;
+    .bloco {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-<div id="login">
-  <h2>Login</h2>
-  <input id="username" placeholder="Usuário">
-  <input type="password" id="password" placeholder="Senha">
-  <button onclick="login()">Entrar</button>
-  <p class="aviso" id="avisoLogin"></p>
-</div>
+<h1>Registrar Ponto</h1>
 
-<div id="app" style="display:none;">
-  <h2>Registrar Ponto</h2>
-  <select id="tipoTrabalho">
-    <option>Elétrica</option>
-    <option>Hidraulica</option>
-    <option>Manutenção Civil</option>
-  </select>
-  <button onclick="registrarEntrada()">Entrada</button>
-  <button onclick="registrarSaida()">Saída</button>
-  <button onclick="limparRegistros()">Limpar Registros</button>
-  
-  <h3>Registros do Dia</h3>
-  <ul id="registros"></ul>
-  <p>Total hoje: <span id="totalHoje">0 min</span></p>
+<select id="tipoTrabalho">
+  <option value="Elétrica">Elétrica</option>
+  <option value="Hidráulica">Hidráulica</option>
+  <option value="Manutenção Civil">Manutenção Civil</option>
+</select>
 
-  <h3>Resumo Mensal</h3>
-  <p>Elétrica: <span id="totalEletrica">0h 0min</span></p>
-  <p>Hidráulica: <span id="totalHidraulica">0h 0min</span></p>
-  <p>Manutenção Civil: <span id="totalCivil">0h 0min</span></p>
-</div>
+<button onclick="registrar('Entrada')">Entrada</button>
+<button onclick="registrar('Saída')">Saída</button>
+<button onclick="limparRegistros()">Limpar Registros</button>
+
+<h2>Registros do Dia</h2>
+<ul id="registros"></ul>
+<p id="totalHoje"></p>
+
+<h2>Resumo Mensal</h2>
+<p>Elétrica: <span id="resumoEletrica">0h 0min</span></p>
+<p>Hidráulica: <span id="resumoHidraulica">0h 0min</span></p>
+<p>Manutenção Civil: <span id="resumoCivil">0h 0min</span></p>
 
 <script>
-  const usuarios = { "usuario1": "senha1" };
-  let horarios = JSON.parse(localStorage.getItem("horarios")) || [];
+let horarios = JSON.parse(localStorage.getItem('horarios')) || [];
 
-  function login() {
-    const u = document.getElementById("username").value;
-    const p = document.getElementById("password").value;
-    if (usuarios[u] === p) {
-      document.getElementById("login").style.display = "none";
-      document.getElementById("app").style.display = "block";
-      carregarRegistros();
-    } else {
-      document.getElementById("avisoLogin").innerText = "Credenciais inválidas!";
-    }
-  }
-
-  function registrarEntrada() {
-    registrar('Entrada');
-  }
-
-  function registrarSaida() {
-    registrar('Saída');
-  }
-
-  function registrar(tipo) {
+function registrar(tipo) {
     const trabalho = document.getElementById("tipoTrabalho").value;
     const data = new Date();
     const hora = data.getHours().toString().padStart(2, '0') + ":" + data.getMinutes().toString().padStart(2, '0');
 
-    horarios.push({ tipo, trabalho, data: data.toLocaleDateString(), hora });
+    horarios.push({ tipo, trabalho, data: data.toLocaleDateString('pt-BR'), hora });
     localStorage.setItem("horarios", JSON.stringify(horarios));
+    
     carregarRegistros();
-  }
+    calcularTotalHoje();
 
-  function limparRegistros() {
-    horarios = [];
-    localStorage.removeItem("horarios");
-    carregarRegistros();
-  }
+    if (tipo === 'Saída') {
+        calcularResumoMensal();
+    }
+}
 
-  function carregarRegistros() {
+function carregarRegistros() {
     const lista = document.getElementById("registros");
     lista.innerHTML = "";
-    
-    const hoje = new Date().toLocaleDateString();
-    const deHoje = horarios.filter(h => h.data === hoje);
 
-    deHoje.forEach(h => {
-      const item = document.createElement("li");
-      item.textContent = `${h.tipo} - ${h.trabalho}: ${h.hora}`;
-      lista.appendChild(item);
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const registrosHoje = horarios.filter(h => h.data === hoje);
+
+    registrosHoje.forEach(registro => {
+        const item = document.createElement("li");
+        item.textContent = `${registro.tipo} - ${registro.trabalho}: ${registro.hora}`;
+        lista.appendChild(item);
     });
 
-    calcularTotalDia(deHoje);
-    calcularResumoMensal();
-  }
+    calcularTotalHoje();
+}
 
-  function calcularTotalDia(registros) {
-    let minutos = 0;
+function calcularTotalHoje() {
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const registrosHoje = horarios.filter(h => h.data === hoje);
 
-    for (let i = 0; i < registros.length; i += 2) {
-      if (registros[i]?.tipo === 'Entrada' && registros[i+1]?.tipo === 'Saída') {
-        minutos += diferencaEmMinutos(registros[i], registros[i+1]);
-      }
+    let totalMinutos = 0;
+
+    for (let i = 0; i < registrosHoje.length; i += 2) {
+        if (registrosHoje[i] && registrosHoje[i + 1]) {
+            const entrada = horaParaMinutos(registrosHoje[i].hora);
+            const saida = horaParaMinutos(registrosHoje[i + 1].hora);
+            totalMinutos += (saida - entrada);
+        }
     }
 
-    document.getElementById("totalHoje").innerText = `${minutos} min`;
-  }
+    document.getElementById("totalHoje").textContent = `Total hoje: ${totalMinutos} min`;
+}
 
-  function calcularResumoMensal() {
-    const totais = { "Elétrica": 0, "Hidraulica": 0, "Manutenção Civil": 0 };
-    const agora = new Date();
-    const mesAtual = agora.getMonth();
-    const anoAtual = agora.getFullYear();
+function calcularResumoMensal() {
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth() + 1;
+    const anoAtual = hoje.getFullYear();
 
-    const registrosDoMes = horarios.filter(h => {
-      const [dia, mes, ano] = h.data.split('/').map(Number);
-      return mes === mesAtual + 1 && ano === anoAtual;
-    });
-
-    const porTrabalho = {
-      "Elétrica": [],
-      "Hidraulica": [],
-      "Manutenção Civil": []
+    const totais = {
+        "Elétrica": 0,
+        "Hidráulica": 0,
+        "Manutenção Civil": 0
     };
 
-    registrosDoMes.forEach(h => porTrabalho[h.trabalho].push(h));
+    const registrosDoMes = horarios.filter(h => {
+        const partesData = h.data.split('/');
+        const dia = parseInt(partesData[0], 10);
+        const mes = parseInt(partesData[1], 10);
+        const ano = parseInt(partesData[2], 10);
+        return mes === mesAtual && ano === anoAtual;
+    });
 
-    for (const tipo in porTrabalho) {
-      const registros = porTrabalho[tipo];
-      for (let i = 0; i < registros.length; i += 2) {
-        if (registros[i]?.tipo === 'Entrada' && registros[i+1]?.tipo === 'Saída') {
-          totais[tipo] += diferencaEmMinutos(registros[i], registros[i+1]);
+    const entradas = {};
+    registrosDoMes.forEach(reg => {
+        if (reg.tipo === 'Entrada') {
+            entradas[reg.trabalho] = horaParaMinutos(reg.hora);
+        } else if (reg.tipo === 'Saída' && entradas[reg.trabalho] !== undefined) {
+            const saida = horaParaMinutos(reg.hora);
+            totais[reg.trabalho] += (saida - entradas[reg.trabalho]);
+            delete entradas[reg.trabalho]; // Reseta para próximo par entrada/saída
         }
-      }
-    }
+    });
 
-    for (const tipo in totais) {
-      const horas = Math.floor(totais[tipo] / 60);
-      const minutos = totais[tipo] % 60;
-      document.getElementById(`total${tipo}`).innerText = `${horas}h ${minutos}min`;
-    }
-  }
+    mostrarResumoMensal(totais);
+}
 
-  function diferencaEmMinutos(entrada, saida) {
-    const [eHora, eMin] = entrada.hora.split(':').map(Number);
-    const [sHora, sMin] = saida.hora.split(':').map(Number);
-    return ((sHora * 60 + sMin) - (eHora * 60 + eMin));
-  }
+function mostrarResumoMensal(totais) {
+    document.getElementById('resumoEletrica').textContent = formatarMinutos(totais['Elétrica']);
+    document.getElementById('resumoHidraulica').textContent = formatarMinutos(totais['Hidráulica']);
+    document.getElementById('resumoCivil').textContent = formatarMinutos(totais['Manutenção Civil']);
+}
+
+function horaParaMinutos(hora) {
+    const [h, m] = hora.split(':').map(Number);
+    return h * 60 + m;
+}
+
+function formatarMinutos(minutos) {
+    const horas = Math.floor(minutos / 60);
+    const min = minutos % 60;
+    return `${horas}h ${min}min`;
+}
+
+function limparRegistros() {
+    horarios = [];
+    localStorage.removeItem('horarios');
+    carregarRegistros();
+    calcularResumoMensal();
+}
+
+window.onload = () => {
+    carregarRegistros();
+    calcularResumoMensal();
+};
 </script>
 
 </body>
