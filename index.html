@@ -7,27 +7,46 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f8ff; /* Azul claro */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-image: url('background.jpg'); /* Adicione uma imagem de fundo */
+      background-size: cover;
+      background-position: center;
     }
     #login, #app {
+      background-color: rgba(255, 255, 255, 0.9); /* Fundo branco semi-transparente */
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       max-width: 400px;
-      margin: 0 auto;
+      width: 100%;
       text-align: center;
+    }
+    h1 {
+      color: #003366; /* Azul marinho */
     }
     input, select, button {
       margin: 10px 0;
       padding: 10px;
       width: 100%;
       box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
     button {
-      background-color: #4CAF50;
+      background-color: #003366; /* Azul marinho */
       color: white;
       border: none;
       cursor: pointer;
+      transition: background-color 0.3s;
     }
     button:hover {
-      background-color: #45a049;
+      background-color: #002244; /* Azul marinho mais escuro */
     }
     ul {
       list-style-type: none;
@@ -38,6 +57,11 @@
       margin: 5px 0;
       padding: 10px;
       border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    #mensagem {
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -45,7 +69,9 @@
   <div id="login">
     <h1>Login</h1>
     <input type="text" id="username" placeholder="Usuário">
+    <input type="password" id="password" placeholder="Senha">
     <button onclick="login()">Entrar</button>
+    <p id="mensagem"></p>
   </div>
 
   <div id="app" style="display: none;">
@@ -62,13 +88,14 @@
     <ul id="registros"></ul>
     <h2>Total do Dia</h2>
     <p id="total"></p>
+    <p id="mensagemRegistro"></p>
   </div>
 
   <script>
     // Dados de usuários (simplificado)
     const usuarios = {
-      "usuario1": "senha1",
-      "usuario2": "senha2"
+      "usuario1": { senha: "senha1" },
+      "usuario2": { senha: "senha2" }
     };
 
     // Dados de horários (armazenados no localStorage)
@@ -77,20 +104,33 @@
     // Função de login
     function login() {
       const username = document.getElementById("username").value;
-      if (usuarios[username]) {
+      const password = document.getElementById("password").value;
+      const mensagem = document.getElementById("mensagem");
+
+      if (usuarios[username] && usuarios[username].senha === password) {
         document.getElementById("login").style.display = "none";
         document.getElementById("app").style.display = "block";
         carregarRegistros();
+        mensagem.textContent = "";
       } else {
-        alert("Usuário inválido!");
+        mensagem.textContent = "Usuário ou senha inválidos!";
       }
     }
 
     // Registrar entrada
     function registrarEntrada() {
       const tipoTrabalho = document.getElementById("tipoTrabalho").value;
+      const mensagemRegistro = document.getElementById("mensagemRegistro");
+
       if (!tipoTrabalho) {
-        alert("Selecione um tipo de trabalho!");
+        mensagemRegistro.textContent = "Selecione um tipo de trabalho!";
+        return;
+      }
+
+      // Verifica se já existe uma entrada sem saída
+      const ultimoRegistro = horarios[horarios.length - 1];
+      if (ultimoRegistro && ultimoRegistro.tipo === "Entrada") {
+        mensagemRegistro.textContent = "Erro: Já existe uma entrada sem saída!";
         return;
       }
 
@@ -99,13 +139,23 @@
       horarios.push({ tipo: "Entrada", data, horario, tipoTrabalho });
       localStorage.setItem("horarios", JSON.stringify(horarios));
       carregarRegistros();
+      mensagemRegistro.textContent = "";
     }
 
     // Registrar saída
     function registrarSaida() {
       const tipoTrabalho = document.getElementById("tipoTrabalho").value;
+      const mensagemRegistro = document.getElementById("mensagemRegistro");
+
       if (!tipoTrabalho) {
-        alert("Selecione um tipo de trabalho!");
+        mensagemRegistro.textContent = "Selecione um tipo de trabalho!";
+        return;
+      }
+
+      // Verifica se a última ação foi uma entrada
+      const ultimoRegistro = horarios[horarios.length - 1];
+      if (!ultimoRegistro || ultimoRegistro.tipo !== "Entrada") {
+        mensagemRegistro.textContent = "Erro: Não há uma entrada registrada para esta saída!";
         return;
       }
 
@@ -115,6 +165,7 @@
       localStorage.setItem("horarios", JSON.stringify(horarios));
       carregarRegistros();
       calcularTotal();
+      mensagemRegistro.textContent = "";
     }
 
     // Carregar registros na tela
