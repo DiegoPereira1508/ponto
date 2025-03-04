@@ -4,22 +4,10 @@
     <meta charset="UTF-8">
     <title>Registro de Ponto</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-        }
-        button {
-            margin: 5px;
-            padding: 10px 15px;
-            cursor: pointer;
-        }
-        h1, h2 {
-            margin-top: 20px;
-        }
-        #status {
-            font-weight: bold;
-            color: green;
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        h1, h2 { margin-top: 20px; }
+        #status { font-weight: bold; color: green; }
     </style>
 </head>
 <body>
@@ -42,18 +30,24 @@
 <h2>Registros do Dia</h2>
 <ul id="registrosDoDia"></ul>
 <p id="totalHoje">Total hoje: 0 min</p>
+<p id="pagamentoHoje">Pagamento hoje: R$ 0,00</p>
 <p>Status: <span id="status">Nenhum registro</span></p>
 
 <h2>Resumo Mensal</h2>
 <div id="resumoMensal"></div>
+<p id="totalPagamento">Total a receber no mês: R$ 0,00</p>
 
 <script>
 let registros = JSON.parse(localStorage.getItem('registros')) || [];
+const valoresHora = {
+    "Elétrica": 103.00,
+    "Hidráulica": 97.50,
+    "Manutenção Civil": 97.00
+};
 
 function registrarEntrada() {
     const tipo = document.getElementById('tipoTrabalho').value;
-    const horaAtual = obterHoraAtual();
-    registros.push({ tipo, acao: 'Entrada', hora: horaAtual, data: dataAtual() });
+    registros.push({ tipo, acao: 'Entrada', hora: obterHoraAtual(), data: dataAtual() });
     salvarRegistros();
     atualizarTela();
 }
@@ -67,16 +61,14 @@ function registrarSaida() {
         alert(`Não há entrada registrada para ${tipo} hoje.`);
         return;
     }
-
-    const horaAtual = obterHoraAtual();
-    registros.push({ tipo, acao: 'Saída', hora: horaAtual, data: dataAtual() });
+    
+    registros.push({ tipo, acao: 'Saída', hora: obterHoraAtual(), data: dataAtual() });
     salvarRegistros();
     atualizarTela();
 }
 
 function obterHoraAtual() {
-    const agora = new Date();
-    return agora.toTimeString().slice(0, 5);
+    return new Date().toTimeString().slice(0, 5);
 }
 
 function dataAtual() {
@@ -121,43 +113,33 @@ function mostrarRegistrosDoDia() {
 function calcularTotalHoje() {
     const hoje = dataAtual();
     const registrosHoje = registros.filter(r => r.data === hoje);
-
     let totalMinutos = 0;
+    let totalPagamento = 0;
+    
     for (let i = 0; i < registrosHoje.length; i += 2) {
         if (registrosHoje[i + 1]) {
-            totalMinutos += diferencaMinutos(registrosHoje[i].hora, registrosHoje[i + 1].hora);
+            const minutos = diferencaMinutos(registrosHoje[i].hora, registrosHoje[i + 1].hora);
+            totalMinutos += minutos;
+            totalPagamento += (valoresHora[registrosHoje[i].tipo] / 60) * minutos;
         }
     }
-
+    
     document.getElementById('totalHoje').textContent = `Total hoje: ${totalMinutos} min`;
+    document.getElementById('pagamentoHoje').textContent = `Pagamento hoje: R$ ${totalPagamento.toFixed(2)}`;
 }
 
 function atualizarResumoMensal() {
-    const resumo = document.getElementById('resumoMensal');
-    resumo.innerHTML = '';
-    const mapaResumo = {};
-
+    let totalPagamento = 0;
     registros.forEach(r => {
-        if (!mapaResumo[r.tipo]) mapaResumo[r.tipo] = {};
-        if (!mapaResumo[r.tipo][r.data]) mapaResumo[r.tipo][r.data] = { minutos: 0 };
-        if (r.acao === 'Entrada') {
-            mapaResumo[r.tipo][r.data].entrada = r.hora;
-        } else if (r.acao === 'Saída' && mapaResumo[r.tipo][r.data].entrada) {
-            const duracao = diferencaMinutos(mapaResumo[r.tipo][r.data].entrada, r.hora);
-            mapaResumo[r.tipo][r.data].minutos += duracao;
-            delete mapaResumo[r.tipo][r.data].entrada; 
+        if (r.acao === 'Saída') {
+            const entrada = registros.find(e => e.tipo === r.tipo && e.acao === 'Entrada' && e.data === r.data);
+            if (entrada) {
+                const minutos = diferencaMinutos(entrada.hora, r.hora);
+                totalPagamento += (valoresHora[r.tipo] / 60) * minutos;
+            }
         }
     });
-
-    for (let tipo in mapaResumo) {
-        const tipoDiv = document.createElement('div');
-        tipoDiv.innerHTML = `<strong>${tipo}</strong>`;
-        for (let data in mapaResumo[tipo]) {
-            const minutos = mapaResumo[tipo][data].minutos;
-            tipoDiv.innerHTML += `<p>${data}: ${formatarMinutos(minutos)}</p>`;
-        }
-        resumo.appendChild(tipoDiv);
-    }
+    document.getElementById('totalPagamento').textContent = `Total a receber no mês: R$ ${totalPagamento.toFixed(2)}`;
 }
 
 function atualizarStatus() {
@@ -165,7 +147,7 @@ function atualizarStatus() {
     const registrosHoje = registros.filter(r => r.data === hoje);
     const temEntrada = registrosHoje.some(r => r.acao === 'Entrada');
     const temSaida = registrosHoje.some(r => r.acao === 'Saída');
-
+    
     const status = document.getElementById('status');
     if (temEntrada && !temSaida) {
         status.textContent = 'Em andamento';
@@ -179,27 +161,17 @@ function atualizarStatus() {
     }
 }
 
-function diferencaMinutos(h1, h2) {
-    return horaParaMinutos(h2) - horaParaMinutos(h1);
-}
-
-function horaParaMinutos(hora) {
-    const [h, m] = hora.split(':').map(Number);
-    return h * 60 + m;
-}
-
-function formatarMinutos(minutos) {
-    const h = Math.floor(minutos / 60);
-    const m = minutos % 60;
-    return `${h}h ${m}min`;
-}
-
 function exportarCSV() {
-    let csv = "Data;Tipo;Ação;Hora\n";
+    let csv = "Data;Tipo;Ação;Hora;Horas Trabalhadas;Pagamento\n";
     registros.forEach(r => {
-        csv += `${r.data};${r.tipo};${r.acao};${r.hora}\n`;
+        const entrada = registros.find(e => e.tipo === r.tipo && e.acao === 'Entrada' && e.data === r.data);
+        let minutos = 0, pagamento = 0;
+        if (entrada && r.acao === 'Saída') {
+            minutos = diferencaMinutos(entrada.hora, r.hora);
+            pagamento = (valoresHora[r.tipo] / 60) * minutos;
+        }
+        csv += `${r.data};${r.tipo};${r.acao};${r.hora};${(minutos/60).toFixed(2)};R$ ${pagamento.toFixed(2)}\n`;
     });
-
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -209,6 +181,5 @@ function exportarCSV() {
 
 window.onload = atualizarTela;
 </script>
-
 </body>
 </html>
