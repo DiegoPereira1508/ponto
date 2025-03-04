@@ -1,185 +1,211 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
     <title>Registro de Ponto</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
-        h1, h2 { margin-top: 20px; }
-        #status { font-weight: bold; color: green; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 350px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+        }
+        h2 {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-<h1>Registrar Ponto</h1>
-<p>Data de hoje: <span id="dataHoje"></span></p>
+<div class="container" id="loginScreen">
+    <h2>Login</h2>
+    <input type="text" id="usuario" placeholder="Usuário">
+    <input type="password" id="senha" placeholder="Senha">
+    <button onclick="login()">Entrar</button>
+</div>
 
-<select id="tipoTrabalho">
-    <option value="Elétrica">Elétrica</option>
-    <option value="Hidráulica">Hidráulica</option>
-    <option value="Manutenção Civil">Manutenção Civil</option>
-</select>
+<div class="container" id="pontoScreen" style="display:none;">
+    <h2>Registro de Ponto</h2>
+    <select id="tipoServico">
+        <option>Elétrica</option>
+        <option>Hidráulica</option>
+        <option>Manutenção Civil</option>
+    </select>
+    <button onclick="registrarEntrada()">Entrada</button>
+    <button onclick="registrarSaida()">Saída</button>
+    <button onclick="limparRegistros()">Limpar Registros</button>
+    <button onclick="exportarCSV()">Exportar CSV</button>
+    <button onclick="sair()">Sair</button>
 
-<button onclick="registrarEntrada()">Entrada</button>
-<button onclick="registrarSaida()">Saída</button>
-<button onclick="limparRegistros()">Limpar Registros</button>
-<button onclick="exportarCSV()">Exportar CSV</button>
-<button onclick="sair()">Sair</button>
+    <h3>Registros do Dia</h3>
+    <div id="registrosDia"></div>
 
-<h2>Registros do Dia</h2>
-<ul id="registrosDoDia"></ul>
-<p id="totalHoje">Total hoje: 0 min</p>
-<p id="pagamentoHoje">Pagamento hoje: R$ 0,00</p>
-<p>Status: <span id="status">Nenhum registro</span></p>
-
-<h2>Resumo Mensal</h2>
-<div id="resumoMensal"></div>
-<p id="totalPagamento">Total a receber no mês: R$ 0,00</p>
+    <h3>Resumo Mensal</h3>
+    <div id="resumoMensal"></div>
+</div>
 
 <script>
-let registros = JSON.parse(localStorage.getItem('registros')) || [];
-const valoresHora = {
-    "Elétrica": 103.00,
-    "Hidráulica": 97.50,
-    "Manutenção Civil": 97.00
+let registros = JSON.parse(localStorage.getItem('registros')) || {};
+let valorHora = {
+    'Elétrica': 103,
+    'Hidráulica': 97.50,
+    'Manutenção Civil': 97
 };
 
+function login() {
+    const usuario = document.getElementById('usuario').value;
+    const senha = document.getElementById('senha').value;
+    if (usuario === 'admin' && senha === '1234') {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('pontoScreen').style.display = 'block';
+        atualizarTela();
+    } else {
+        alert('Usuário ou senha incorretos.');
+    }
+}
+
+function sair() {
+    location.reload();
+}
+
 function registrarEntrada() {
-    const tipo = document.getElementById('tipoTrabalho').value;
-    registros.push({ tipo, acao: 'Entrada', hora: obterHoraAtual(), data: dataAtual() });
+    const tipo = document.getElementById('tipoServico').value;
+    if (!registros[tipo]) registros[tipo] = [];
+    registros[tipo].push({ entrada: new Date(), saida: null });
     salvarRegistros();
     atualizarTela();
 }
 
 function registrarSaida() {
-    const tipo = document.getElementById('tipoTrabalho').value;
-    const hoje = dataAtual();
-    const ultEntrada = registros.findLast(r => r.tipo === tipo && r.acao === 'Entrada' && r.data === hoje);
-
-    if (!ultEntrada) {
-        alert(`Não há entrada registrada para ${tipo} hoje.`);
-        return;
+    const tipo = document.getElementById('tipoServico').value;
+    const registro = registros[tipo]?.find(r => !r.saida);
+    if (registro) {
+        registro.saida = new Date();
+        salvarRegistros();
+        atualizarTela();
+    } else {
+        alert('Nenhuma entrada aberta para este serviço.');
     }
-    
-    registros.push({ tipo, acao: 'Saída', hora: obterHoraAtual(), data: dataAtual() });
-    salvarRegistros();
-    atualizarTela();
-}
-
-function obterHoraAtual() {
-    return new Date().toTimeString().slice(0, 5);
-}
-
-function dataAtual() {
-    return new Date().toLocaleDateString('pt-BR');
 }
 
 function salvarRegistros() {
     localStorage.setItem('registros', JSON.stringify(registros));
 }
 
+function atualizarTela() {
+    const hoje = new Date().toLocaleDateString();
+    let totalMinutos = 0;
+    let htmlDia = '';
+    let resumoMensal = { 'Elétrica': 0, 'Hidráulica': 0, 'Manutenção Civil': 0 };
+
+    for (let tipo in registros) {
+        registros[tipo].forEach(reg => {
+            if (reg.entrada && reg.saida) {
+                const minutos = calcularDiferencaMinutos(reg.entrada, reg.saida);
+                if (new Date(reg.entrada).toLocaleDateString() === hoje) {
+                    totalMinutos += minutos;
+                    htmlDia += `${tipo} - Entrada: ${formatarHora(reg.entrada)}, Saída: ${formatarHora(reg.saida)}<br>`;
+                }
+                resumoMensal[tipo] += minutos;
+            }
+        });
+    }
+
+    document.getElementById('registrosDia').innerHTML = htmlDia + `<strong>Total hoje: ${formatarHorasEMinutos(totalMinutos)}</strong>`;
+    let resumoHTML = '';
+    for (let tipo in resumoMensal) {
+        resumoHTML += `${tipo}: ${formatarHorasEMinutos(resumoMensal[tipo])}<br>`;
+    }
+    document.getElementById('resumoMensal').innerHTML = resumoHTML;
+}
+
+function calcularDiferencaMinutos(inicio, fim) {
+    return Math.floor((new Date(fim) - new Date(inicio)) / 60000);
+}
+
+function formatarHora(data) {
+    const d = new Date(data);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatarHorasEMinutos(minutos) {
+    return `${Math.floor(minutos / 60)}h ${minutos % 60}min`;
+}
+
 function limparRegistros() {
-    registros = [];
+    registros = {};
     salvarRegistros();
     atualizarTela();
 }
 
-function sair() {
-    if (confirm('Tem certeza que deseja sair?')) {
-        window.close();
-    }
-}
-
-function atualizarTela() {
-    document.getElementById('dataHoje').textContent = dataAtual();
-    mostrarRegistrosDoDia();
-    calcularTotalHoje();
-    atualizarResumoMensal();
-    atualizarStatus();
-}
-
-function mostrarRegistrosDoDia() {
-    const lista = document.getElementById('registrosDoDia');
-    lista.innerHTML = '';
-    const hoje = dataAtual();
-    registros.filter(r => r.data === hoje).forEach(r => {
-        const li = document.createElement('li');
-        li.textContent = `${r.acao} - ${r.tipo}: ${r.hora}`;
-        lista.appendChild(li);
-    });
-}
-
-function calcularTotalHoje() {
-    const hoje = dataAtual();
-    const registrosHoje = registros.filter(r => r.data === hoje);
-    let totalMinutos = 0;
-    let totalPagamento = 0;
-    
-    for (let i = 0; i < registrosHoje.length; i += 2) {
-        if (registrosHoje[i + 1]) {
-            const minutos = diferencaMinutos(registrosHoje[i].hora, registrosHoje[i + 1].hora);
-            totalMinutos += minutos;
-            totalPagamento += (valoresHora[registrosHoje[i].tipo] / 60) * minutos;
-        }
-    }
-    
-    document.getElementById('totalHoje').textContent = `Total hoje: ${totalMinutos} min`;
-    document.getElementById('pagamentoHoje').textContent = `Pagamento hoje: R$ ${totalPagamento.toFixed(2)}`;
-}
-
-function atualizarResumoMensal() {
-    let totalPagamento = 0;
-    registros.forEach(r => {
-        if (r.acao === 'Saída') {
-            const entrada = registros.find(e => e.tipo === r.tipo && e.acao === 'Entrada' && e.data === r.data);
-            if (entrada) {
-                const minutos = diferencaMinutos(entrada.hora, r.hora);
-                totalPagamento += (valoresHora[r.tipo] / 60) * minutos;
-            }
-        }
-    });
-    document.getElementById('totalPagamento').textContent = `Total a receber no mês: R$ ${totalPagamento.toFixed(2)}`;
-}
-
-function atualizarStatus() {
-    const hoje = dataAtual();
-    const registrosHoje = registros.filter(r => r.data === hoje);
-    const temEntrada = registrosHoje.some(r => r.acao === 'Entrada');
-    const temSaida = registrosHoje.some(r => r.acao === 'Saída');
-    
-    const status = document.getElementById('status');
-    if (temEntrada && !temSaida) {
-        status.textContent = 'Em andamento';
-        status.style.color = 'orange';
-    } else if (temEntrada && temSaida) {
-        status.textContent = 'Concluído';
-        status.style.color = 'green';
-    } else {
-        status.textContent = 'Nenhum registro';
-        status.style.color = 'red';
-    }
-}
-
 function exportarCSV() {
-    let csv = "Data;Tipo;Ação;Hora;Horas Trabalhadas;Pagamento\n";
-    registros.forEach(r => {
-        const entrada = registros.find(e => e.tipo === r.tipo && e.acao === 'Entrada' && e.data === r.data);
-        let minutos = 0, pagamento = 0;
-        if (entrada && r.acao === 'Saída') {
-            minutos = diferencaMinutos(entrada.hora, r.hora);
-            pagamento = (valoresHora[r.tipo] / 60) * minutos;
-        }
-        csv += `${r.data};${r.tipo};${r.acao};${r.hora};${(minutos/60).toFixed(2)};R$ ${pagamento.toFixed(2)}\n`;
-    });
+    let linhas = ['Data;Serviço;Entrada;Saída;Tempo Trabalhado;Valor a Receber'];
+
+    for (let tipo in registros) {
+        registros[tipo].forEach(reg => {
+            if (reg.saida) {
+                const data = new Date(reg.entrada).toLocaleDateString();
+                const entrada = formatarHora(reg.entrada);
+                const saida = formatarHora(reg.saida);
+                const minutos = calcularDiferencaMinutos(reg.entrada, reg.saida);
+                const tempo = formatarHorasEMinutos(minutos);
+                const valorMinuto = valorHora[tipo] / 60;
+                const valorReceber = (minutos * valorMinuto).toFixed(2).replace('.', ',');
+
+                linhas.push(`${data};${tipo};${entrada};${saida};${tempo};R$ ${valorReceber}`);
+            }
+        });
+    }
+
+    if (linhas.length === 1) {
+        alert('Nenhum registro para exportar.');
+        return;
+    }
+
+    const csv = linhas.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'registros_ponto.csv';
-    link.click();
-}
 
-window.onload = atualizarTela;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // DICA: Para realmente "bloquear edição", o ideal é gerar PDF no futuro.
+    // CSV é só texto, sempre pode ser editado no bloco de notas.
+}
 </script>
+
 </body>
 </html>
