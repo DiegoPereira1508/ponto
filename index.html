@@ -84,9 +84,8 @@ document.getElementById('senha').addEventListener('keypress', (e) => {
 });
 
 function login() {
-    const usuario = document.getElementById('usuario').value;
-    const senha = document.getElementById('senha').value;
-    if (usuario === 'admin' && senha === '1234') {
+    if (document.getElementById('usuario').value === 'admin' &&
+        document.getElementById('senha').value === '1234') {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('pontoScreen').style.display = 'block';
         atualizarTela();
@@ -115,7 +114,7 @@ function registrarSaida() {
         salvarRegistros();
         atualizarTela();
     } else {
-        alert('Nenhuma entrada aberta para esse serviço.');
+        alert('Nenhuma entrada aberta.');
     }
 }
 
@@ -131,20 +130,19 @@ function atualizarTela() {
 
     for (let tipo in registros) {
         registros[tipo].forEach(r => {
-            if (r.entrada && r.saida) {
+            const entrada = formatarHora(r.entrada);
+            const saida = r.saida ? formatarHora(r.saida) : 'Em andamento';
+            htmlDia += `${tipo}: ${entrada} - ${saida}<br>`;
+            if (r.saida) {
                 const minutos = calcularMinutos(r.entrada, r.saida);
-                if (new Date(r.entrada).toLocaleDateString() === hoje) {
-                    totalMinutos += minutos;
-                    htmlDia += `${tipo}: ${formatarHora(r.entrada)} - ${formatarHora(r.saida)} (${minutos} min)<br>`;
-                }
                 resumo[tipo] += minutos;
+                if (new Date(r.entrada).toLocaleDateString() === hoje) totalMinutos += minutos;
             }
         });
     }
-
-    document.getElementById('registrosDia').innerHTML = htmlDia || 'Nenhum registro hoje';
-    document.getElementById('resumoMensal').innerHTML = 
-        Object.keys(resumo).map(tipo => `${tipo}: ${formatarHoras(resumo[tipo])}`).join('<br>');
+    document.getElementById('registrosDia').innerHTML = htmlDia || 'Nenhum registro';
+    document.getElementById('resumoMensal').innerHTML = Object.keys(resumo)
+        .map(t => `${t}: ${formatarHoras(resumo[t])}`).join('<br>');
 }
 
 function limparRegistros() {
@@ -161,48 +159,53 @@ function formatarHora(data) {
     return new Date(data).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatarHoras(minutos) {
-    return `${Math.floor(minutos / 60)}h ${minutos % 60}min`;
+function formatarHoras(min) {
+    return `${Math.floor(min / 60)}h ${min % 60}min`;
 }
 
 function exportarPDF() {
-    let registrosArray = [['Data', 'Serviço', 'Entrada', 'Saída', 'Horas Trabalhadas', 'Valor']];
+    let rows = [['Data', 'Serviço', 'Entrada', 'Saída', 'Horas', 'Valor']];
     for (let tipo in registros) {
         registros[tipo].forEach(r => {
             if (r.saida) {
-                const data = new Date(r.entrada).toLocaleDateString();
-                const entrada = formatarHora(r.entrada);
-                const saida = formatarHora(r.saida);
                 const minutos = calcularMinutos(r.entrada, r.saida);
-                const horas = formatarHoras(minutos);
                 const valor = ((valorHora[tipo] / 60) * minutos).toFixed(2).replace('.', ',');
-
-                registrosArray.push([data, tipo, entrada, saida, horas, `R$ ${valor}`]);
+                rows.push([
+                    new Date(r.entrada).toLocaleDateString(),
+                    tipo,
+                    formatarHora(r.entrada),
+                    formatarHora(r.saida),
+                    formatarHoras(minutos),
+                    `R$ ${valor}`
+                ]);
             }
         });
     }
 
-    if (registrosArray.length === 1) {
-        alert('Nenhum registro para exportar.');
-        return;
-    }
-
-    const docDefinition = {
+    const doc = {
         content: [
-            { text: 'Relatório de Registro de Ponto', style: 'header' },
-            { text: `Data de Emissão: ${new Date().toLocaleDateString()}\n\n` },
-            {
-                table: { body: registrosArray }
-            }
+            { text: 'Relatório de Ponto', style: 'header' },
+            { text: `Emitido em: ${new Date().toLocaleDateString()}` },
+            { table: { body: rows } }
         ],
-        styles: {
-            header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] }
-        }
+        styles: { header: { fontSize: 16, bold: true } }
     };
 
-    pdfMake.createPdf(docDefinition).download('Registros_Ponto.pdf');
+    pdfMake.createPdf(doc).download('Ponto.pdf');
+
+    enviarEmailComPDF(doc);
+}
+
+function enviarEmailComPDF(docDefinition) {
+    pdfMake.createPdf(docDefinition).getBase64(pdfBase64 => {
+        fetch('https://seuservidor.com/api/enviar-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfBase64, email: 'diego.pereira1508@gmail.com' })
+        }).then(() => alert('PDF enviado por e-mail!'))
+          .catch(() => alert('Erro ao enviar e-mail.'));
+    });
 }
 </script>
-
 </body>
 </html>
