@@ -76,12 +76,16 @@
     .bloco-trabalho h3 {
       color: #003366;
     }
-
-    /* Responsividade */
     @media (max-width: 600px) {
       #login, #app {
-        width: 100%;
-        padding: 10px;
+        max-width: 100%;
+        padding: 15px;
+      }
+      h1 {
+        font-size: 1.2rem;
+      }
+      button {
+        font-size: 0.9rem;
       }
     }
   </style>
@@ -173,8 +177,15 @@
         return;
       }
 
+      // Verifica se já existe uma entrada sem saída
+      const ultimoRegistro = horarios[horarios.length - 1];
+      if (ultimoRegistro && ultimoRegistro.tipo === "Entrada") {
+        mensagemRegistro.textContent = "Erro: Já existe uma entrada sem saída!";
+        return;
+      }
+
       const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
-      const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); // Com segundos
+      const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // Com horas e minutos
       horarios.push({ tipo: "Entrada", data, horario, tipoTrabalho });
       localStorage.setItem("horarios", JSON.stringify(horarios));
       carregarRegistros();
@@ -191,8 +202,15 @@
         return;
       }
 
+      // Verifica se a última ação foi uma entrada
+      const ultimoRegistro = horarios[horarios.length - 1];
+      if (!ultimoRegistro || ultimoRegistro.tipo !== "Entrada") {
+        mensagemRegistro.textContent = "Erro: Não há uma entrada registrada para esta saída!";
+        return;
+      }
+
       const data = new Date().toLocaleDateString("pt-BR"); // Formato dd/mm/aaaa
-      const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); // Com segundos
+      const horario = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); // Com horas e minutos
       horarios.push({ tipo: "Saída", data, horario, tipoTrabalho });
       localStorage.setItem("horarios", JSON.stringify(horarios));
       carregarRegistros();
